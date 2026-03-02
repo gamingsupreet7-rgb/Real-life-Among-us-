@@ -1,18 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Among Us Real Life</title>
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Among Us Real Life</title>
+  <style>
+    body { background:#111; color:white; font-family:Arial; text-align:center; }
+    input, button { padding:10px; margin:5px; font-size:16px; }
+    ul { list-style:none; padding:0; }
+    li { margin:5px 0; }
+  </style>
 </head>
-<body style="background:#111;color:white;text-align:center;font-family:Arial;">
+<body>
 
 <h1>Among Us Real Life 🔥</h1>
 
 <input id="nameInput" placeholder="Enter Your Name">
-<br><br>
+<br>
 <button onclick="joinGame()">Join Game</button>
 
 <h2 id="role"></h2>
+
 <h3>Players:</h3>
 <ul id="playersList"></ul>
 
@@ -21,7 +29,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
 
 <script>
-  // 🔥 PASTE YOUR FIREBASE CONFIG HERE
+  // ---------------- FIREBASE CONFIG ----------------
   const firebaseConfig = {
     apiKey: "AIzaSyDbR67XE2iBcqQUkrDjjr7LQtLUNpyUdB8",
     authDomain: "rl-amongus-real-life-amo-5542a.firebaseapp.com",
@@ -32,13 +40,15 @@
     appId: "1:811874974870:web:db729403e3c241c1d7d6b7"
   };
 
+  // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
+  // ---------------- JOIN GAME ----------------
   function joinGame() {
-    const name = document.getElementById("nameInput").value;
-    if (!name) {
-      alert("Enter name");
+    const name = document.getElementById("nameInput").value.trim();
+    if(!name) {
+      alert("Enter a name!");
       return;
     }
 
@@ -47,18 +57,22 @@
 
     db.ref("players/" + name).set({
       role: randomRole
+    })
+    .then(() => {
+      document.getElementById("role").innerText = name + " is " + randomRole;
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Error adding player!");
     });
-
-    document.getElementById("role").innerText =
-      name + " is " + randomRole;
   }
 
-  db.ref("players").on("value", (snapshot) => {
-    const data = snapshot.val();
+  // ---------------- REALTIME PLAYER LIST ----------------
+  db.ref("players").on("value", snapshot => {
+    const data = snapshot.val() || {};
     const list = document.getElementById("playersList");
     list.innerHTML = "";
-
-    for (let player in data) {
+    for(let player in data) {
       const li = document.createElement("li");
       li.innerText = player + " - " + data[player].role;
       list.appendChild(li);
