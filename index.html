@@ -1,1 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Among Us Real Life</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="background:#111;color:white;text-align:center;font-family:Arial;">
 
+<h1>Among Us Real Life 🔥</h1>
+
+<input id="nameInput" placeholder="Enter Your Name">
+<br><br>
+<button onclick="joinGame()">Join Game</button>
+
+<h2 id="role"></h2>
+<h3>Players:</h3>
+<ul id="playersList"></ul>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+
+<script>
+  // 🔥 PASTE YOUR FIREBASE CONFIG HERE
+  const firebaseConfig = {
+    apiKey: "AIzaSyDbR67XE2iBcqQUkrDjjr7LQtLUNpyUdB8",
+    authDomain: "rl-amongus-real-life-amo-5542a.firebaseapp.com",
+    databaseURL: "https://rl-amongus-real-life-amo-5542a-default-rtdb.firebaseio.com",
+    projectId: "rl-amongus-real-life-amo-5542a",
+    storageBucket: "rl-amongus-real-life-amo-5542a.firebasestorage.app",
+    messagingSenderId: "811874974870",
+    appId: "1:811874974870:web:db729403e3c241c1d7d6b7"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  function joinGame() {
+    const name = document.getElementById("nameInput").value;
+    if (!name) {
+      alert("Enter name");
+      return;
+    }
+
+    const roles = ["Imposter 😈", "Crewmate 👨‍🚀"];
+    const randomRole = roles[Math.floor(Math.random() * roles.length)];
+
+    db.ref("players/" + name).set({
+      role: randomRole
+    });
+
+    document.getElementById("role").innerText =
+      name + " is " + randomRole;
+  }
+
+  db.ref("players").on("value", (snapshot) => {
+    const data = snapshot.val();
+    const list = document.getElementById("playersList");
+    list.innerHTML = "";
+
+    for (let player in data) {
+      const li = document.createElement("li");
+      li.innerText = player + " - " + data[player].role;
+      list.appendChild(li);
+    }
+  });
+</script>
+
+</body>
+</html>
