@@ -3,53 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Among Us Real-Life PRO</title>
+    <title>Among Us Real-Life ULTIMATE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { background-color: #0b0e14; color: #fff; font-family: sans-serif; }
-        .task-card { background: #1c232e; border-left: 4px solid #3ea6ff; padding: 10px; margin-bottom: 8px; border-radius: 4px; }
-        #camera-preview { width: 100%; height: 200px; background: #000; border-radius: 8px; display: none; object-fit: cover; }
+        :root { --am-red: #c51111; --am-blue: #132ed1; }
+        body { background: #000; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .dead-overlay { position: fixed; inset: 0; background: rgba(139, 0, 0, 0.9); z-index: 1000; display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: 900; animation: shake 0.2s infinite; }
+        @keyframes shake { 0% { transform: translate(1px, 1px); } 50% { transform: translate(-1px, -2px); } 100% { transform: translate(1px, -1px); } }
+        .gallery-img { width: 100%; height: 150px; object-fit: cover; border-radius: 8px; border: 2px solid #333; }
+        .btn-glow { box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
     </style>
 </head>
-<body class="p-4">
+<body class="overflow-x-hidden">
 
-    <div id="app" class="max-w-md mx-auto">
-        <div id="lobby" class="space-y-4">
-            <h1 class="text-3xl font-bold text-center text-blue-500">AMONG US PRO</h1>
-            <input id="nick" type="text" placeholder="NAME" class="w-full p-4 bg-gray-800 rounded">
+    <div id="app" class="max-w-2xl mx-auto min-h-screen flex flex-col p-4">
+        <div id="lobby" class="space-y-6 pt-10">
+            <h1 class="text-5xl font-black text-center italic tracking-tighter text-blue-500">PRO <span class="text-white">MANAGER</span></h1>
             
-            <div id="host-only" class="p-4 border-2 border-dashed border-gray-600 rounded">
-                <p class="text-sm mb-2 text-gray-400">HOST: Add Custom Tasks</p>
-                <input id="custom-task-input" type="text" placeholder="e.g. Go to Balcony" class="w-full p-2 bg-gray-900 text-sm mb-2">
-                <button onclick="addCustomTask()" class="bg-blue-600 p-2 rounded text-xs">ADD TASK</button>
-                <div id="added-tasks" class="text-xs mt-2 text-blue-300"></div>
+            <div class="space-y-2">
+                <input id="nick" type="text" placeholder="APNA NAAM" class="w-full p-5 bg-gray-900 border-2 border-gray-700 rounded-2xl text-xl font-bold uppercase">
+                <textarea id="taskInput" placeholder="Har line mein ek task likhein... (e.g. Balcony mein selfie lo)" class="w-full p-4 bg-gray-900 border-2 border-gray-700 rounded-2xl h-32 text-sm"></textarea>
             </div>
 
-            <button onclick="createRoom()" class="w-full p-4 bg-blue-700 rounded font-bold">HOST GAME</button>
-            <input id="room-in" type="text" placeholder="CODE" class="w-full p-4 bg-gray-800 rounded">
-            <button onclick="joinRoom()" class="w-full p-4 bg-green-700 rounded font-bold">JOIN GAME</button>
+            <button onclick="initMatch('host')" class="w-full py-5 bg-blue-600 rounded-2xl font-black text-2xl shadow-2xl active:scale-95 transition-all">CREATE PRO MATCH</button>
+            <div class="flex gap-3">
+                <input id="roomCode" type="text" placeholder="6-DIGIT CODE" class="flex-1 p-5 bg-gray-900 rounded-2xl text-center font-mono text-xl">
+                <button onclick="initMatch('join')" class="px-8 bg-green-600 rounded-2xl font-bold">JOIN</button>
+            </div>
         </div>
 
-        <div id="game" class="hidden">
-            <div id="gps-status" class="text-[10px] text-yellow-500 mb-2 font-mono">GPS: Checking location...</div>
-            <h2 id="role" class="text-2xl font-bold mb-4">CREWMATE</h2>
-            
-            <div id="task-container" class="space-y-2 mb-4">
+        <div id="game" class="hidden flex-grow flex flex-col space-y-4">
+            <div class="flex justify-between items-center bg-gray-900 p-4 rounded-2xl border-b-4 border-gray-800">
+                <div>
+                    <p id="player-role" class="text-2xl font-black italic">CREWMATE</p>
+                    <p id="dist-tag" class="text-[10px] text-yellow-500 font-mono">GPS: Syncing...</p>
                 </div>
-
-            <video id="camera-preview" autoplay playsinline></video>
-            <canvas id="photo-canvas" class="hidden"></canvas>
-
-            <div class="grid grid-cols-2 gap-2 mt-4">
-                <button id="main-action-btn" onclick="handleAction()" class="p-8 bg-blue-600 rounded-xl font-bold">DO TASK</button>
-                <button onclick="triggerMeeting()" class="p-8 bg-orange-600 rounded-xl font-bold text-sm text-center">REPORT / MEETING</button>
+                <button onclick="openGallery()" class="p-3 bg-purple-600 rounded-xl font-bold text-xs">📸 GALLERY</button>
             </div>
+
+            <div id="task-list" class="flex-grow space-y-3 overflow-y-auto max-h-[40vh] p-2"></div>
+
+            <div class="mt-auto space-y-4">
+                <video id="cam" class="hidden w-full h-48 rounded-2xl bg-black object-cover mb-4" autoplay playsinline></video>
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="action-btn" onclick="taskAction()" class="py-10 bg-blue-600 rounded-3xl font-black text-xl btn-glow uppercase">Do Task</button>
+                    <button onclick="reportMatch()" class="py-10 bg-orange-600 rounded-3xl font-black text-xl uppercase">Report</button>
+                </div>
+                <button id="kill-btn" onclick="killAction()" class="hidden w-full py-5 bg-red-700 rounded-2xl font-black text-2xl border-4 border-red-900">KILL (InRange)</button>
+            </div>
+        </div>
+
+        <div id="gallery-modal" class="hidden fixed inset-0 bg-black z-[2000] p-6 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold">EVIDENCE ROOM</h2>
+                <button onclick="closeGallery()" class="text-4xl">&times;</button>
+            </div>
+            <div id="gallery-grid" class="grid grid-cols-2 gap-4"></div>
+        </div>
+
+        <div id="dead-screen" class="hidden dead-overlay flex-col">
+            <span>YOU ARE DEAD</span>
+            <p class="text-lg mt-4 font-normal">Wait for meeting to talk...</p>
         </div>
     </div>
 
 <script>
+    // --- FIREBASE CONFIG ---
     const firebaseConfig = {
         apiKey: "AIzaSyDbR67XE2iBcqQUkrDjjr7LQtLUNpyUdB8",
         databaseURL: "https://rl-amongus-real-life-amo-5542a-default-rtdb.firebaseio.com",
@@ -59,124 +80,165 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let state = { code: '', id: Date.now(), tasks: [], customTasks: [], startPos: null, currentTaskIndex: 0 };
+    let state = { id: Math.random().toString(36).substr(2,9), code: '', role: 'Crewmate', tasks: [], players: {}, lat:0, lon:0 };
 
-    function addCustomTask() {
-        const task = document.getElementById('custom-task-input').value;
-        if(task) {
-            state.customTasks.push(task);
-            document.getElementById('added-tasks').innerHTML += `• ${task}<br>`;
-            document.getElementById('custom-task-input').value = '';
-        }
-    }
+    async function initMatch(type) {
+        const nick = document.getElementById('nick').value;
+        if(!nick) return alert("Pehle naam toh batao!");
 
-    async function createRoom() {
-        state.code = Math.floor(100000 + Math.random() * 900000).toString();
-        await db.ref('rooms/' + state.code).set({
-            state: 'playing',
-            customTasks: state.customTasks,
-            players: { [state.id]: { name: document.getElementById('nick').value, role: 'Crewmate' } }
-        });
-        startGame();
-    }
-
-    async function joinRoom() {
-        state.code = document.getElementById('room-in').value;
-        await db.ref(`rooms/${state.code}/players/${state.id}`).set({
-            name: document.getElementById('nick').value, role: 'Crewmate'
-        });
-        startGame();
-    }
-
-    function startGame() {
-        document.getElementById('lobby').classList.add('hidden');
-        document.getElementById('game').classList.remove('hidden');
-        initGPS();
-        loadTasks();
-    }
-
-    // --- GPS SYSTEM ---
-    function initGPS() {
-        if ("geolocation" in navigator) {
-            navigator.geolocation.watchPosition((pos) => {
-                if(!state.startPos) state.startPos = pos.coords;
-                const dist = calculateDistance(state.startPos.latitude, state.startPos.longitude, pos.coords.latitude, pos.coords.longitude);
-                document.getElementById('gps-status').innerText = `GPS: Moved ${dist.toFixed(1)} meters`;
+        if(type === 'host') {
+            state.code = Math.floor(100000 + Math.random()*900000).toString();
+            const tasks = document.getElementById('taskInput').value.split('\n').filter(t => t.trim() !== "");
+            await db.ref('rooms/'+state.code).set({
+                status: 'playing',
+                taskBank: tasks,
+                players: { [state.id]: { name: nick, role: 'Crewmate', status: 'alive', lat:0, lon:0 } }
+            });
+        } else {
+            state.code = document.getElementById('roomCode').value;
+            await db.ref(`rooms/${state.code}/players/${state.id}`).set({
+                name: nick, role: 'Crewmate', status: 'alive', lat:0, lon:0
             });
         }
+        startUI();
     }
 
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371e3; // metres
-        const φ1 = lat1 * Math.PI/180;
-        const φ2 = lat2 * Math.PI/180;
-        const Δφ = (lat2-lat1) * Math.PI/180;
-        const Δλ = (lon2-lon1) * Math.PI/180;
-        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    }
+    function startUI() {
+        document.getElementById('lobby').classList.add('hidden');
+        document.getElementById('game').classList.remove('hidden');
 
-    // --- CAMERA SYSTEM ---
-    async function startCamera() {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        const video = document.getElementById('camera-preview');
-        video.srcObject = stream;
-        video.style.display = 'block';
-    }
+        // GPS Proximity System
+        navigator.geolocation.watchPosition(pos => {
+            state.lat = pos.coords.latitude;
+            state.lon = pos.coords.longitude;
+            db.ref(`rooms/${state.code}/players/${state.id}`).update({ lat: state.lat, lon: state.lon });
+            document.getElementById('dist-tag').innerText = `GPS: Locked (${state.lat.toFixed(4)})`;
+        });
 
-    function takePhoto() {
-        const video = document.getElementById('camera-preview');
-        const canvas = document.getElementById('photo-canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-        video.style.display = 'none';
-        video.srcObject.getTracks().forEach(track => track.stop());
-        return canvas.toDataURL('image/jpeg');
-    }
+        // Live Data Listener
+        db.ref(`rooms/${state.code}/players`).on('value', snap => {
+            state.players = snap.val();
+            const me = state.players[state.id];
+            
+            // Impostor check
+            if(me.role === 'Impostor') {
+                state.role = 'Impostor';
+                document.getElementById('player-role').innerText = "IMPOSTOR";
+                document.getElementById('player-role').className = "text-2xl font-black italic text-red-600";
+                document.getElementById('kill-btn').classList.remove('hidden');
+            }
 
-    // --- TASK LOGIC ---
-    function loadTasks() {
-        db.ref(`rooms/${state.code}/customTasks`).once('value', snap => {
-            const tasks = snap.val() || ["Scan QR in Kitchen", "Fix Lights in Hallway"];
-            state.tasks = tasks.map(t => ({ text: t, done: false }));
+            // Death check
+            if(me.status === 'dead') {
+                document.getElementById('dead-screen').classList.remove('hidden');
+                navigator.vibrate([500, 200, 500]);
+            }
+
+            checkKillRange();
+        });
+
+        // Load Tasks
+        db.ref(`rooms/${state.code}/taskBank`).once('value', snap => {
+            const all = snap.val() || [];
+            state.tasks = all.map(t => ({ text: t, done: false }));
             renderTasks();
         });
     }
 
     function renderTasks() {
         let html = '';
-        state.tasks.forEach((t, i) => {
-            html += `<div class="task-card ${t.done ? 'opacity-50 border-green-500' : ''}">
-                ${t.done ? '✅' : '⏳'} ${t.text}
+        state.tasks.forEach(t => {
+            html += `<div class="p-4 bg-gray-900 rounded-2xl border-l-4 ${t.done ? 'border-green-500 opacity-50' : 'border-blue-500'}">
+                <p class="font-bold">${t.done ? '✅' : '🔴'} ${t.text}</p>
             </div>`;
         });
-        document.getElementById('task-container').innerHTML = html;
+        document.getElementById('task-list').innerHTML = html;
     }
 
-    async function handleAction() {
-        const btn = document.getElementById('main-action-btn');
+    async function taskAction() {
+        const btn = document.getElementById('action-btn');
+        const video = document.getElementById('cam');
         
-        if (btn.innerText === "DO TASK") {
-            await startCamera();
-            btn.innerText = "TAKE PROOF PHOTO";
-            btn.className = "p-8 bg-green-600 rounded-xl font-bold";
+        if(btn.innerText === "Do Task") {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            video.srcObject = stream;
+            video.classList.remove('hidden');
+            btn.innerText = "CONFIRM PROOF";
         } else {
-            const photoData = takePhoto();
-            // In a real app, you'd send photoData to Firebase for host to verify
-            // For now, we simulate success
-            state.tasks[state.currentTaskIndex].done = true;
-            state.currentTaskIndex++;
-            btn.innerText = "DO TASK";
-            btn.className = "p-8 bg-blue-600 rounded-xl font-bold";
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const photo = canvas.toDataURL('image/jpeg', 0.6); // Heavy but clear
+
+            // Save to Gallery
+            db.ref(`rooms/${state.code}/gallery`).push({
+                player: state.players[state.id].name,
+                photo: photo,
+                time: new Date().toLocaleTimeString()
+            });
+
+            video.srcObject.getTracks().forEach(t => t.stop());
+            video.classList.add('hidden');
+            btn.innerText = "Do Task";
+
+            // Mark task done
+            const next = state.tasks.find(t => !t.done);
+            if(next) next.done = true;
             renderTasks();
-            alert("Task Photo Captured! Verification Sent.");
         }
     }
 
-    function triggerMeeting() {
-        alert("EMERGENCY MEETING! Sab log ek jagah ikatthe ho jao.");
+    function openGallery() {
+        const modal = document.getElementById('gallery-modal');
+        modal.classList.remove('hidden');
+        db.ref(`rooms/${state.code}/gallery`).once('value', snap => {
+            let html = '';
+            snap.forEach(child => {
+                const data = child.val();
+                html += `<div class="bg-gray-900 p-2 rounded-xl">
+                    <img src="${data.photo}" class="gallery-img mb-2">
+                    <p class="text-[10px] font-bold text-blue-400">${data.player}</p>
+                    <p class="text-[8px] text-gray-500">${data.time}</p>
+                </div>`;
+            });
+            document.getElementById('gallery-grid').innerHTML = html;
+        });
     }
+
+    function closeGallery() { document.getElementById('gallery-modal').classList.add('hidden'); }
+
+    function checkKillRange() {
+        if(state.role !== 'Impostor') return;
+        let canKill = false;
+        for(let pid in state.players) {
+            if(pid === state.id || state.players[pid].status === 'dead') continue;
+            const dist = getDist(state.lat, state.lon, state.players[pid].lat, state.players[pid].lon);
+            if(dist < 5) { // 5 Meters range
+                canKill = pid;
+                break;
+            }
+        }
+        state.target = canKill;
+        document.getElementById('kill-btn').style.opacity = canKill ? "1" : "0.3";
+    }
+
+    function getDist(lat1, lon1, lat2, lon2) {
+        const R = 6371e3;
+        const dLat = (lat2-lat1)*Math.PI/180;
+        const dLon = (lon2-lon1)*Math.PI/180;
+        const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function killAction() {
+        if(state.target) {
+            db.ref(`rooms/${state.code}/players/${state.target}`).update({ status: 'dead' });
+            alert("KILL SUCCESSFUL!");
+        }
+    }
+
+    function reportMatch() { alert("REPORT FIRED! Meeting point par milo."); }
+
 </script>
 </body>
 </html>
