@@ -3,79 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Among Us Real-Life</title>
+    <title>AI Among Us - GPS FIX</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        :root { --am-red: #ff3e3e; --am-blue: #3ea6ff; }
-        body { background: #050505; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
-        .screen { display: none; height: 100vh; padding: 20px; overflow-y: auto; }
+        body { background: #000; color: #fff; font-family: sans-serif; overflow: hidden; }
+        .screen { display: none; height: 100vh; padding: 20px; }
         .screen.active { display: block; }
-        .am-card { background: #111; border: 1px solid #222; border-radius: 15px; padding: 15px; margin-bottom: 15px; }
-        .lobby-code { font-size: 2.5rem; letter-spacing: 5px; color: var(--am-blue); font-weight: 900; text-align: center; }
-        .preview-img { width: 100%; height: 150px; object-fit: cover; border-radius: 10px; border: 2px solid #333; margin-top: 10px; }
+        #map-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 5000; padding: 20px; }
+        #map-canvas { width: 100%; height: 70%; background: #111; border: 2px solid #444; position: relative; border-radius: 20px; overflow: hidden; }
+        .player-dot { width: 12px; height: 12px; border-radius: 50%; position: absolute; border: 2px solid #fff; transition: all 0.5s; }
+        .am-btn { active: scale(0.95); transition: 0.2s; }
     </style>
 </head>
 <body>
 
-    <div id="home-screen" class="screen active text-center pt-20">
-        <h1 class="text-5xl font-black italic text-red-600 mb-10">AMONG US <br><span class="text-white text-3xl">REAL LIFE</span></h1>
-        <input id="nick" type="text" placeholder="APNA NAAM" class="w-full p-4 bg-gray-900 rounded-xl mb-6 text-center text-xl font-bold uppercase">
-        <button onclick="showScreen('host-setup')" class="w-full py-5 bg-blue-700 rounded-2xl font-black text-xl mb-4 shadow-lg">HOST GAME</button>
+    <div id="home-screen" class="screen active text-center pt-10">
+        <h1 class="text-4xl font-black text-red-600 mb-8 italic">AMONG US <br>PRO MAX</h1>
+        <input id="nick" type="text" placeholder="APNA NAAM" class="w-full p-4 bg-gray-900 rounded-xl mb-4 text-center border border-gray-700">
+        <button onclick="showScreen('host-setup')" class="w-full py-5 bg-blue-700 rounded-2xl font-bold mb-4">HOST GAME</button>
         <div class="flex gap-2">
             <input id="joinCode" type="text" placeholder="CODE" class="w-full p-4 bg-gray-900 rounded-xl text-center font-mono">
-            <button onclick="joinRoom()" class="px-8 bg-green-700 rounded-xl font-bold">JOIN</button>
+            <button onclick="joinRoom()" class="px-6 bg-green-700 rounded-xl font-bold">JOIN</button>
         </div>
     </div>
 
     <div id="host-setup" class="screen">
-        <h2 class="text-2xl font-bold mb-4">SET TASKS</h2>
-        <div class="am-card">
-            <input id="taskDesc" type="text" placeholder="Task Name (e.g. Fridge)" class="w-full p-3 bg-black rounded mb-2">
-            <div class="flex gap-2 mb-2">
-                <button onclick="document.getElementById('fileIn').click()" class="flex-1 bg-gray-800 p-2 rounded text-sm">📸 Photo Chuno</button>
-                <input type="file" id="fileIn" class="hidden" accept="image/*" onchange="previewHostImage(this)">
-                <button onclick="addHostTask()" class="flex-1 bg-blue-600 p-2 rounded text-sm font-bold">Add Task</button>
-            </div>
-            <img id="host-preview" class="preview-img hidden">
+        <h2 class="text-xl font-bold mb-4 text-blue-400">CREATE TASKS</h2>
+        <div class="bg-gray-900 p-4 rounded-xl space-y-3">
+            <input id="taskDesc" type="text" placeholder="Task Ka Naam" class="w-full p-3 bg-black rounded border border-gray-700">
+            <input type="file" id="fileIn" class="hidden" accept="image/*" onchange="previewImg(this)">
+            <button onclick="document.getElementById('fileIn').click()" class="w-full p-2 bg-gray-800 rounded text-xs">📸 Select Photo</button>
+            <img id="h-preview" class="hidden w-full h-32 object-cover rounded mt-2">
+            <button onclick="addT()" class="w-full py-2 bg-blue-600 rounded font-bold">Add Task</button>
         </div>
-        <div id="task-preview-list" class="space-y-2 mb-4"></div>
-        <button onclick="createRoom()" class="w-full py-4 bg-red-700 rounded-xl font-black">CREATE LOBBY</button>
-        <button onclick="showScreen('home-screen')" class="w-full py-2 text-gray-500 mt-2">Back to Home</button>
+        <div id="t-list" class="mt-4 text-xs text-gray-500 space-y-1"></div>
+        <button onclick="createRoom()" class="w-full py-4 bg-red-700 rounded-xl mt-6 font-bold">CREATE LOBBY</button>
+        <button onclick="showScreen('home-screen')" class="w-full py-2 text-gray-600 mt-2">Back</button>
     </div>
 
     <div id="lobby" class="screen text-center">
-        <p class="text-gray-400">Share this code with friends:</p>
-        <div id="room-id-display" class="lobby-code my-6">------</div>
-        <div class="am-card min-h-[150px]">
-            <p class="text-xs text-blue-400 mb-2">PLAYERS JOINED:</p>
-            <div id="player-list" class="text-lg font-bold"></div>
+        <p class="text-gray-500">Room Code:</p>
+        <h2 id="code-disp" class="text-5xl font-black text-blue-500 my-4 tracking-widest">000000</h2>
+        <div class="bg-gray-900 p-4 rounded-xl min-h-[100px]">
+            <p class="text-xs text-blue-400 uppercase mb-2">Players:</p>
+            <div id="p-list" class="font-bold"></div>
         </div>
-        <button id="start-btn" onclick="startGame()" class="hidden w-full py-5 bg-green-600 rounded-2xl font-black text-xl mb-4">START MATCH</button>
-        <p class="text-[10px] text-gray-500 italic">Only host can start the game</p>
+        <button id="start-btn" onclick="startMatch()" class="hidden w-full py-5 bg-green-600 rounded-2xl font-bold mt-10">START GAME</button>
     </div>
 
     <div id="game" class="screen">
         <div class="flex justify-between items-center mb-4">
-            <span id="role-tag" class="font-black text-2xl italic">CREWMATE</span>
-            <span id="gps-status" class="text-[10px] text-yellow-500">GPS: 0m</span>
+            <button onclick="toggleMap()" class="p-3 bg-gray-800 rounded-full border border-gray-600">🗺️ MAP</button>
+            <div class="text-right">
+                <p id="r-tag" class="font-black italic text-xl">CREWMATE</p>
+                <p id="gps-debug" class="text-[8px] text-yellow-500">GPS: Waiting...</p>
+            </div>
         </div>
-        
-        <div id="task-display" class="am-card">
-            <p id="current-task-name" class="font-bold text-lg mb-2">Loading Task...</p>
-            <p class="text-[10px] text-gray-400 mb-1">REFERENCE PHOTO:</p>
-            <img id="reference-img" class="w-full h-40 object-cover rounded-lg border-2 border-blue-900">
+
+        <div class="bg-gray-900 p-3 rounded-xl mb-4 border-l-4 border-blue-600">
+            <p id="cur-t-name" class="font-bold">Loading Task...</p>
+            <img id="ref-img" class="w-full h-32 object-cover rounded mt-2 border border-gray-800">
         </div>
 
         <div class="fixed bottom-10 left-4 right-4 space-y-3">
             <video id="cam" class="hidden w-full h-40 bg-black rounded-xl object-cover border-2 border-white" autoplay playsinline></video>
             <div class="grid grid-cols-2 gap-4">
-                <button id="action-btn" onclick="handleTask()" class="py-10 bg-blue-600 rounded-2xl font-black shadow-xl">DO TASK</button>
-                <button onclick="alert('Meeting Reported!')" class="py-10 bg-orange-600 rounded-2xl font-black text-xs uppercase">Report</button>
+                <button id="task-btn" onclick="doTask()" class="py-12 bg-blue-600 rounded-3xl font-black text-xl shadow-2xl">DO TASK</button>
+                <button onclick="alert('Meeting Reported!')" class="py-12 bg-orange-600 rounded-3xl font-black">REPORT</button>
             </div>
-            <button id="kill-btn" onclick="killPlayer()" class="hidden w-full py-4 bg-red-800 rounded-xl font-black text-xl">KILL (InRange)</button>
+            <button id="kill-btn" onclick="kill()" class="hidden w-full py-4 bg-red-700 rounded-xl font-black">KILL</button>
         </div>
+    </div>
+
+    <div id="map-overlay">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold">HOUSE MAP</h2>
+            <button onclick="toggleMap()" class="text-4xl text-red-500">&times;</button>
+        </div>
+        <div id="map-canvas">
+            <div id="dots-container"></div>
+            <span class="absolute top-4 left-4 text-[10px] text-gray-700">Kitchen</span>
+            <span class="absolute top-4 right-4 text-[10px] text-gray-700">Balcony</span>
+            <span class="absolute bottom-4 left-4 text-[10px] text-gray-700">Bedroom</span>
+        </div>
+        <p class="text-center text-[10px] text-gray-500 mt-4">Red: You | Blue: Others</p>
     </div>
 
 <script>
@@ -88,87 +101,95 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let state = { id: Math.random().toString(36).substr(2,9), code: '', host: false, tasks: [], players: {}, lat:0, lon:0, origin:{la:0, lo:0} };
+    let state = { id: Math.random().toString(36).substr(2,9), code:'', tasks:[], lat:0, lon:0, origin:{la:0, lo:0}, players:{} };
 
     function showScreen(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
     }
 
-    function previewHostImage(input) {
+    function previewImg(input) {
         const reader = new FileReader();
-        reader.onload = e => {
-            const p = document.getElementById('host-preview');
-            p.src = e.target.result; p.classList.remove('hidden');
+        reader.onload = e => { 
+            document.getElementById('h-preview').src = e.target.result;
+            document.getElementById('h-preview').classList.remove('hidden');
         };
         reader.readAsDataURL(input.files[0]);
     }
 
-    function addHostTask() {
-        const name = document.getElementById('taskDesc').value;
-        const img = document.getElementById('host-preview').src;
-        if(!name || img.includes('hidden')) return alert("Naam aur Photo dono zaroori hain!");
-        state.tasks.push({ name, img });
-        document.getElementById('task-preview-list').innerHTML += `<div class='text-xs'>✅ ${name}</div>`;
+    function addT() {
+        const n = document.getElementById('taskDesc').value;
+        const i = document.getElementById('h-preview').src;
+        if(!n || !i) return alert("Photo aur Naam daalein!");
+        state.tasks.push({name:n, img:i, done:false});
+        document.getElementById('t-list').innerHTML += `<div>✅ ${n}</div>`;
         document.getElementById('taskDesc').value = '';
-        document.getElementById('host-preview').classList.add('hidden');
+        document.getElementById('h-preview').classList.add('hidden');
     }
 
     async function createRoom() {
-        const name = document.getElementById('nick').value;
-        if(!name) return alert("Pehle apna naam likho!");
+        const nick = document.getElementById('nick').value;
+        if(!nick) return alert("Naam likho!");
         state.code = Math.floor(100000 + Math.random()*900000).toString();
-        state.host = true;
         await db.ref('rooms/'+state.code).set({
-            status: 'lobby', host: state.id, tasks: state.tasks,
-            players: { [state.id]: { name, role:'Crewmate', status:'alive' } }
+            status: 'lobby', tasks: state.tasks,
+            players: { [state.id]: { name: nick, role:'Crewmate', status:'alive', lat:0, lon:0 } }
         });
-        listenToRoom();
-        showScreen('lobby');
-        document.getElementById('room-id-display').innerText = state.code;
+        document.getElementById('code-disp').innerText = state.code;
         document.getElementById('start-btn').classList.remove('hidden');
+        showScreen('lobby');
+        listen();
     }
 
     async function joinRoom() {
-        const name = document.getElementById('nick').value;
-        const code = document.getElementById('joinCode').value;
-        if(!name || !code) return alert("Naam aur Code bharo!");
-        state.code = code;
-        await db.ref(`rooms/${code}/players/${state.id}`).set({ name, role:'Crewmate', status:'alive' });
-        listenToRoom();
+        const nick = document.getElementById('nick').value;
+        const c = document.getElementById('joinCode').value;
+        if(!nick || !c) return alert("Naam aur Code!");
+        state.code = c;
+        await db.ref(`rooms/${c}/players/${state.id}`).set({ name: nick, role:'Crewmate', status:'alive', lat:0, lon:0 });
+        document.getElementById('code-disp').innerText = c;
         showScreen('lobby');
-        document.getElementById('room-id-display').innerText = code;
+        listen();
     }
 
-    function listenToRoom() {
+    function listen() {
         db.ref(`rooms/${state.code}/players`).on('value', snap => {
-            const players = snap.val();
-            document.getElementById('player-list').innerHTML = Object.values(players).map(p => p.name).join('<br>');
+            state.players = snap.val() || {};
+            document.getElementById('p-list').innerHTML = Object.values(state.players).map(p => p.name).join('<br>');
+            updateMap();
         });
         db.ref(`rooms/${state.code}/status`).on('value', snap => {
-            if(snap.val() === 'playing') startGameUI();
+            if(snap.val() === 'playing') initGameplay();
         });
     }
 
-    function startGame() {
+    function startMatch() {
         db.ref(`rooms/${state.code}`).update({ status: 'playing' });
-        // Randomly assign one Impostor
-        db.ref(`rooms/${state.code}/players`).once('value', s => {
-            const ids = Object.keys(s.val());
-            const impId = ids[Math.floor(Math.random()*ids.length)];
-            db.ref(`rooms/${state.code}/players/${impId}`).update({ role: 'Impostor' });
-        });
+        const ids = Object.keys(state.players);
+        const imp = ids[Math.floor(Math.random()*ids.length)];
+        db.ref(`rooms/${state.code}/players/${imp}`).update({ role: 'Impostor' });
     }
 
-    function startGameUI() {
+    function initGameplay() {
         showScreen('game');
+        
+        // GPS FIX - High Accuracy
         navigator.geolocation.watchPosition(p => {
-            if(state.origin.la === 0) { state.origin.la = p.coords.latitude; state.origin.lo = p.coords.longitude; }
-            state.lat = p.coords.latitude; state.lon = p.coords.longitude;
-            const dist = getDist(state.origin.la, state.origin.lo, state.lat, state.lon);
-            document.getElementById('gps-status').innerText = `GPS: ${dist.toFixed(1)}m`;
-            document.getElementById('action-btn').style.opacity = dist >= 5 ? '1' : '0.3';
-        }, null, {enableHighAccuracy:true});
+            if(state.origin.la === 0) { 
+                state.origin.la = p.coords.latitude; 
+                state.origin.lo = p.coords.longitude; 
+            }
+            state.lat = p.coords.latitude;
+            state.lon = p.coords.longitude;
+            
+            const dist = getD(state.origin.la, state.origin.lo, state.lat, state.lon);
+            document.getElementById('gps-debug').innerText = `GPS: Online | Moved: ${dist.toFixed(1)}m`;
+            document.getElementById('task-btn').style.opacity = dist >= 5 ? '1' : '0.4';
+            
+            db.ref(`rooms/${state.code}/players/${state.id}`).update({ lat: state.lat, lon: state.lon });
+        }, (err) => {
+            document.getElementById('gps-debug').innerText = "GPS Error: " + err.message;
+        }, { enableHighAccuracy: true, timeout: 5000 });
 
         db.ref(`rooms/${state.code}/tasks`).once('value', s => {
             state.tasks = s.val() || [];
@@ -176,60 +197,72 @@
         });
 
         db.ref(`rooms/${state.code}/players/${state.id}`).on('value', s => {
-            const p = s.val();
-            if(p.role === 'Impostor') {
-                document.getElementById('role-tag').innerText = "IMPOSTOR";
-                document.getElementById('role-tag').style.color = "red";
+            if(s.val().role === 'Impostor') {
+                document.getElementById('r-tag').innerText = "IMPOSTOR";
+                document.getElementById('r-tag').style.color = "red";
                 document.getElementById('kill-btn').classList.remove('hidden');
             }
         });
     }
 
     function updateTaskUI() {
-        const current = state.tasks.find(t => !t.done);
-        if(current) {
-            document.getElementById('current-task-name').innerText = current.name;
-            document.getElementById('reference-img').src = current.img;
+        const t = state.tasks.find(x => !x.done);
+        if(t) {
+            document.getElementById('cur-t-name').innerText = "TASK: " + t.name;
+            document.getElementById('ref-img').src = t.img;
         } else {
-            document.getElementById('current-task-name').innerText = "ALL TASKS DONE! ✅";
-            document.getElementById('reference-img').src = "";
+            document.getElementById('cur-t-name').innerText = "ALL TASKS COMPLETE! ✅";
         }
     }
 
-    async function handleTask() {
-        const dist = getDist(state.origin.la, state.origin.lo, state.lat, state.lon);
-        if(dist < 5) return alert("Pehle 5 meter chalkar jao!");
+    async function doTask() {
+        const d = getD(state.origin.la, state.origin.lo, state.lat, state.lon);
+        if(d < 5) return alert("Pehle 5 meter chalkar jao!");
 
-        const btn = document.getElementById('action-btn');
-        const video = document.getElementById('cam');
+        const b = document.getElementById('task-btn');
+        const v = document.getElementById('cam');
 
-        if(btn.innerText === "DO TASK") {
-            const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-            video.srcObject = stream; video.classList.remove('hidden');
-            btn.innerText = "CHECK PHOTO (AI)";
+        if(b.innerText === "DO TASK") {
+            const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+            v.srcObject = s; v.classList.remove('hidden');
+            b.innerText = "FINISH TASK";
         } else {
-            // AI Matching Logic (Simplified Pixel Comparison)
-            const canvas = document.createElement('canvas');
-            canvas.width = 100; canvas.height = 100;
-            canvas.getContext('2d').drawImage(video, 0, 0, 100, 100);
-            
-            video.srcObject.getTracks().forEach(t => t.stop());
-            video.classList.add('hidden');
-            btn.innerText = "DO TASK";
-
-            // AI Simulation Alert
-            alert("AI Matcher: Photo Match ho gayi! Task Complete.");
-            const tIdx = state.tasks.findIndex(x => !x.done);
-            if(tIdx !== -1) state.tasks[tIdx].done = true;
-            state.origin = {la: state.lat, lo: state.lon}; // Reset GPS
+            v.srcObject.getTracks().forEach(t => t.stop());
+            v.classList.add('hidden');
+            b.innerText = "DO TASK";
+            const idx = state.tasks.findIndex(x => !x.done);
+            if(idx !== -1) state.tasks[idx].done = true;
+            state.origin = {la: state.lat, lo: state.lon}; // Reset for next task
             updateTaskUI();
+            alert("AI Verified: Task Done!");
         }
     }
 
-    function getDist(la1,lo1,la2,lo2) {
+    function toggleMap() {
+        const m = document.getElementById('map-overlay');
+        m.style.display = (m.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function updateMap() {
+        const cont = document.getElementById('dots-container');
+        cont.innerHTML = '';
+        for(let id in state.players) {
+            const p = state.players[id];
+            const x = 150 + (p.lon - state.origin.lo) * 1000000;
+            const y = 150 + (p.lat - state.origin.la) * 1000000;
+            const dot = document.createElement('div');
+            dot.className = 'player-dot';
+            dot.style.left = Math.min(Math.max(x, 10), 280) + 'px';
+            dot.style.top = Math.min(Math.max(y, 10), 280) + 'px';
+            dot.style.background = (id === state.id) ? 'red' : 'blue';
+            cont.appendChild(dot);
+        }
+    }
+
+    function getD(la1,lo1,la2,lo2) {
         const R = 6371000;
         const dLa = (la2-la1)*Math.PI/180;
-        const dLo = (lon2-lo1)*Math.PI/180;
+        const dLo = (lo2-lo1)*Math.PI/180;
         const a = Math.sin(dLa/2)**2 + Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLo/2)**2;
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
