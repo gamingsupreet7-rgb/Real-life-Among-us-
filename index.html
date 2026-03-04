@@ -359,4 +359,67 @@
     function launch() {
         const ids = Object.keys(state.players);
         const imp = ids[Math.floor(Math.random()*ids.length)];
-        ids.forEach(id => db.ref(`rooms/${state.code}/players/${id}`).update({ role: id=
+        ids.forEach(id => db.ref(`rooms/${state.code}/players/${id}`).update({ role: id===imp?'Impostor':'Crewmate' }));
+        db.ref(`rooms/${state.code}`).update({ status: 'playing' });
+    }
+
+    function updateMap() {
+        const map = document.getElementById('map-players'); map.innerHTML = '';
+        for(let id in state.players) {
+            const p = state.players[id];
+            if(p.status === 'dead') {
+                map.innerHTML += `<div class="absolute text-red-600 text-sm" style="left:${50+(p.lon-state.origin.lo)*1500000}%; top:${50+(p.lat-state.origin.la)*1500000}%"><i class="fas fa-skull"></i></div>`;
+                continue;
+            }
+            const dot = document.createElement('div'); dot.className = 'p-dot';
+            dot.style.left = 50 + (p.lon - state.origin.lo) * 1500000 + '%';
+            dot.style.top = 50 + (p.lat - state.origin.la) * 1500000 + '%';
+            dot.style.background = (id === state.id) ? '#00f3ff' : (state.role==='Impostor'?'#ff003c':'#fff');
+            map.appendChild(dot);
+        }
+    }
+
+    function checkActions() {
+        if(state.status === 'dead') return;
+        let canKill = false, canReport = false;
+        for(let id in state.players) {
+            if(id === state.id) continue;
+            const p = state.players[id];
+            const d = getDist(state.lat, state.lon, p.lat, p.lon);
+            if(state.role === 'Impostor' && p.role === 'Crewmate' && p.status === 'alive' && d < 4) canKill = true;
+            if(p.status === 'dead' && d < 5) canReport = true;
+        }
+        const kb = document.getElementById('kill-btn');
+        if(canKill) kb.classList.add('active'); else kb.classList.remove('active');
+        document.getElementById('report-btn').style.opacity = canReport ? "1" : "0.3";
+    }
+
+    function killPlayer() {
+        if(!document.getElementById('kill-btn').classList.contains('active')) return;
+        for(let id in state.players) {
+            const p = state.players[id];
+            if(p.role === 'Crewmate' && p.status === 'alive' && getDist(state.lat, state.lon, p.lat, p.lon) < 4) {
+                db.ref(`rooms/${state.code}/players/${id}`).update({ status: 'dead' });
+                alert("Target Neutralized!"); break;
+            }
+        }
+    }
+
+    function updateHUD() {
+        const t = state.tasks[state.cur];
+        if(t) { document.getElementById('hud-task-name').innerText = t.name; document.getElementById('hud-task-img').src = t.img; }
+        else { document.getElementById('hud-task-name').innerText = "ALL CLEAR"; document.getElementById('hud-task-img').src = ""; }
+    }
+
+    function getDist(la1, lo1, la2, lo2) {
+        const R = 6371000;
+        const dLat = (la2-la1)*Math.PI/180; const dLon = (lo2-lo1)*Math.PI/180;
+        const a = Math.sin(dLat/2)**2 + Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLon/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function toggleMap() { const m = document.getElementById('map-overlay'); m.style.display = m.style.display === 'flex' ? 'none' : 'flex'; }
+    function report() { if(document.getElementById('report-btn').style.opacity === "1") callMeeting(); }
+</script>
+</body>
+</html>
