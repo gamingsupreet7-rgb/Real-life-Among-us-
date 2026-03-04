@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Among Us: Tactical Final</title>
+    <title>Among Us: Tactical Hardcore</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -19,10 +19,9 @@
         .btn-prime { background: linear-gradient(45deg, #0041ff, #00f3ff); border-radius: 12px; font-family: 'Orbitron'; font-weight: 900; }
         #map-view { flex-grow: 1; width: 100%; background: radial-gradient(circle, #0a111a 0%, #000 100%); border: 2px solid var(--n-blue); border-radius: 25px; position: relative; overflow: hidden; margin: 10px 0; }
         .p-dot { width: 14px; height: 14px; border-radius: 50%; position: absolute; transform: translate(-50%, -50%); border: 2px solid #fff; transition: all 0.8s ease-out; z-index: 10; }
-        .body-marker { width: 20px; height: 20px; position: absolute; transform: translate(-50%, -50%); color: #ff0000; z-index: 5; font-size: 20px; }
+        .body-marker { width: 22px; height: 22px; position: absolute; transform: translate(-50%, -50%); color: #ff0000; z-index: 5; font-size: 20px; text-shadow: 0 0 10px red; }
         #meeting-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         #game-result { position: fixed; inset: 0; z-index: 20000; display: none; flex-direction: column; align-items: center; justify-content: center; background: #000; font-family: 'Orbitron'; }
-        .exit-btn { position: fixed; top: 15px; right: 15px; z-index: 5000; padding: 10px; background: rgba(255,0,0,0.2); border-radius: 10px; border: 1px solid red; }
     </style>
 </head>
 <body>
@@ -34,19 +33,18 @@
     </div>
 
     <div id="meeting-overlay">
-        <h2 id="m-status" class="text-3xl font-black text-red-500 mb-2">MEETING IN PROGRESS</h2>
-        <div id="m-timer" class="text-6xl font-['Orbitron'] mb-6">00</div>
+        <h2 id="m-status" class="text-3xl font-black text-red-500 mb-2 font-['Orbitron']">MEETING</h2>
+        <div id="m-timer" class="text-6xl font-['Orbitron'] mb-6 text-white">00</div>
         <div id="v-section" class="w-full max-w-sm hidden">
             <p class="text-center text-cyan-400 mb-4 uppercase">Voting: <span id="v-timer">20</span>s</p>
             <div id="v-list" class="grid grid-cols-2 gap-2"></div>
         </div>
         <div id="m-setup" class="w-full max-w-sm text-center">
-            <input id="m-dur" type="number" placeholder="Discussion Time (s)" class="w-full bg-white/10 p-4 rounded-xl text-center mb-4 border border-white/20">
-            <button onclick="startMeet()" class="w-full py-4 bg-cyan-600 rounded-xl font-bold uppercase">Confirm Time</button>
+            <p class="mb-2 text-gray-400">Discussion Timer (Seconds):</p>
+            <input id="m-dur" type="number" value="30" class="w-full bg-white/10 p-4 rounded-xl text-center mb-4 border border-white/20 text-xl font-bold">
+            <button onclick="startMeet()" class="w-full py-4 bg-cyan-600 rounded-xl font-bold uppercase">Confirm & Start</button>
         </div>
     </div>
-
-    <button class="exit-btn" onclick="confirmExit()"><i class="fas fa-times text-white"></i></button>
 
     <div id="login" class="screen active justify-center">
         <div class="text-center mb-10">
@@ -54,63 +52,64 @@
             <h2 class="text-2xl text-[#00f3ff] font-['Orbitron'] tracking-widest">AMONG US</h2>
         </div>
         <div class="glass p-6 space-y-4">
-            <input id="p-name" type="text" placeholder="AGENT NAME" class="w-full bg-black/50 p-5 rounded-2xl border border-white/10 text-center font-bold">
-            <button onclick="showScreen('mode')" class="w-full btn-prime py-5 text-xl">INITIALIZE</button>
+            <input id="p-name" type="text" placeholder="ENTER AGENT NAME" class="w-full bg-black/50 p-5 rounded-2xl border border-white/10 text-center font-bold uppercase">
+            <button onclick="showScreen('mode')" class="w-full btn-prime py-5 text-xl uppercase">Initialize</button>
         </div>
     </div>
 
     <div id="mode" class="screen justify-center space-y-6">
         <button onclick="showScreen('host-setup')" class="glass p-10 text-center border-cyan-500/30">
             <i class="fas fa-satellite-dish text-4xl mb-4 text-cyan-400"></i>
-            <h3 class="text-2xl font-bold uppercase">Host Mission</h3>
+            <h3 class="text-2xl font-bold uppercase">Host Command</h3>
         </button>
         <div class="glass p-6 flex flex-col gap-4">
-            <input id="join-code" type="text" placeholder="6-DIGIT CODE" class="bg-black/50 p-4 rounded-xl text-center">
-            <button onclick="joinGame()" class="w-full bg-green-600 py-4 rounded-xl font-bold italic uppercase">Join Lobby</button>
+            <input id="join-code" type="text" placeholder="6-DIGIT FREQUENCY" class="bg-black/50 p-4 rounded-xl text-center font-mono">
+            <button onclick="joinGame()" class="w-full bg-green-600 py-4 rounded-xl font-bold uppercase tracking-widest">Join Sync</button>
         </div>
     </div>
 
     <div id="host-setup" class="screen">
         <h2 class="text-2xl font-black text-cyan-400 mb-4 font-['Orbitron']">INTEL SETUP</h2>
         <div class="glass p-4 space-y-3">
-            <input id="t-name" type="text" placeholder="TASK NAME" class="w-full bg-black p-3 rounded-lg border border-white/10">
+            <input id="t-name" type="text" placeholder="TASK LOCATION NAME" class="w-full bg-black p-3 rounded-lg border border-white/10 outline-none">
             <input type="file" id="t-file" class="hidden" accept="image/*" onchange="preview(this)">
-            <button onclick="document.getElementById('t-file').click()" class="w-full h-24 border-2 border-dashed border-white/20 rounded-xl flex items-center justify-center">
-                <img id="t-prev" class="hidden w-full h-full object-cover rounded-xl">
-                <span id="t-hint" class="text-gray-500 font-bold">SELECT IMAGE</span>
+            <button onclick="document.getElementById('t-file').click()" class="w-full h-24 border-2 border-dashed border-white/20 rounded-xl flex items-center justify-center overflow-hidden">
+                <img id="t-prev" class="hidden w-full h-full object-cover">
+                <span id="t-hint" class="text-gray-500 font-bold uppercase text-xs">Capture Target Photo</span>
             </button>
-            <button onclick="addTask()" class="w-full py-3 bg-cyan-900/50 rounded-lg border border-cyan-500 font-bold uppercase">Add Task</button>
+            <button onclick="addTask()" class="w-full py-3 bg-cyan-900/50 rounded-lg border border-cyan-500 font-bold uppercase">Save Task</button>
         </div>
-        <div id="t-list" class="flex gap-2 mt-4 overflow-x-auto"></div>
-        <button onclick="createLobby()" class="mt-auto btn-prime py-5">CREATE LOBBY</button>
+        <div id="t-list" class="flex gap-2 mt-4 overflow-x-auto pb-2"></div>
+        <button onclick="createLobby()" class="mt-auto btn-prime py-5 uppercase">Create Lobby</button>
     </div>
 
     <div id="lobby" class="screen items-center justify-center">
-        <h1 id="display-code" class="text-6xl font-black text-cyan-400 mb-8 font-['Orbitron']">000000</h1>
+        <p class="text-cyan-400 font-bold uppercase tracking-widest mb-2">Room Code</p>
+        <h1 id="display-code" class="text-6xl font-black text-white mb-8 font-['Orbitron'] tracking-tighter">000000</h1>
         <div id="player-list" class="w-full glass p-6 min-h-[200px] mb-8 space-y-2"></div>
-        <button id="start-btn" onclick="startGame()" class="hidden w-full bg-green-600 py-5 rounded-xl font-black text-xl shadow-xl">START MISSION</button>
+        <button id="start-btn" onclick="startGame()" class="hidden w-full bg-green-600 py-5 rounded-xl font-black text-xl uppercase shadow-xl shadow-green-900/20">Launch Mission</button>
     </div>
 
     <div id="hud" class="screen">
-        <div class="flex justify-between items-start mb-2">
+        <div class="flex justify-between items-center mb-2 px-1">
             <div>
-                <h2 id="role-tag" class="text-2xl font-black italic tracking-tighter">CREWMATE</h2>
-                <p id="gps-tag" class="text-[10px] text-cyan-400 font-mono italic">SYNCING...</p>
+                <h2 id="role-tag" class="text-2xl font-black italic tracking-tighter uppercase">CREWMATE</h2>
+                <p id="gps-tag" class="text-[10px] text-cyan-400 font-mono italic">GPS: SYNCING...</p>
             </div>
-            <button id="meet-btn" onclick="callMeet()" class="bg-orange-600/20 border border-orange-500 text-orange-500 px-3 py-2 rounded-xl text-xs font-bold uppercase">MEETING (1)</button>
+            <button id="meet-btn" onclick="callMeet()" class="bg-orange-600/20 border border-orange-500 text-orange-500 px-4 py-2 rounded-xl text-xs font-bold uppercase">Meeting (1)</button>
         </div>
         <div id="map-view"><div id="map-dots"></div></div>
         <div class="glass p-1 h-24 mb-3 relative overflow-hidden">
-            <img id="hud-img" class="w-full h-full object-cover rounded-xl opacity-30">
+            <img id="hud-img" class="w-full h-full object-cover rounded-xl opacity-20">
             <div class="absolute inset-0 flex flex-col justify-center items-center text-center">
                 <h3 id="hud-task" class="text-lg font-black uppercase">Locating...</h3>
-                <p id="ai-score" class="text-[9px] text-gray-400"></p>
+                <p id="ai-score" class="text-[9px] text-gray-500 font-bold"></p>
             </div>
         </div>
         <div class="space-y-3 pb-2">
             <video id="v-cam" class="hidden w-full h-32 bg-black rounded-2xl object-cover border border-cyan-500 mb-2" autoplay playsinline></video>
             <div class="grid grid-cols-2 gap-3">
-                <button id="task-btn" onclick="handleTask()" class="btn-prime py-8 text-lg uppercase" disabled>Do Task</button>
+                <button id="task-btn" onclick="handleTask()" class="btn-prime py-8 text-lg uppercase shadow-lg shadow-cyan-900/30" disabled>Do Task</button>
                 <button id="report-btn" onclick="reportBody()" class="glass bg-red-600/10 border-red-500/30 text-red-500 py-8 font-black uppercase opacity-30">Report</button>
             </div>
         </div>
@@ -137,9 +136,7 @@
         document.getElementById(id).classList.add('active');
     }
 
-    function confirmExit() { if(confirm("Really Abort Mission?")) location.reload(); }
-
-    // --- PHOTO AI: FAIR MATCH ---
+    // --- PHOTO AI ENGINE ---
     async function getHash(src) {
         return new Promise(res => {
             const img = new Image(); img.src = src; img.onload = () => {
@@ -171,13 +168,13 @@
         document.getElementById('t-hint').classList.remove('hidden');
     }
 
-    // --- GPS & LOBBY LOGIC ---
+    // --- LOBBY & ROLES ---
     async function createLobby() {
         state.code = Math.floor(100000 + Math.random()*900000).toString();
         state.name = document.getElementById('p-name').value || 'Agent';
         await db.ref('rooms/'+state.code).set({
             status: 'lobby', tasks: state.tasks,
-            players: { [state.id]: { name: state.name, role: 'Crewmate', status: 'alive', lat:0, lon:0 } }
+            players: { [state.id]: { name: state.name, role: 'Crewmate', status: 'alive', lat:0, lon:0, id: state.id } }
         });
         showScreen('lobby'); document.getElementById('display-code').innerText = state.code;
         document.getElementById('start-btn').classList.remove('hidden');
@@ -188,35 +185,34 @@
         state.code = document.getElementById('join-code').value;
         state.name = document.getElementById('p-name').value || 'Agent';
         if(!state.code) return;
-        db.ref(`rooms/${state.code}/players/${state.id}`).set({ name: state.name, role: 'Crewmate', status: 'alive', lat:0, lon:0 });
+        db.ref(`rooms/${state.code}/players/${state.id}`).set({ name: state.name, role: 'Crewmate', status: 'alive', lat:0, lon:0, id: state.id });
         showScreen('lobby'); document.getElementById('display-code').innerText = state.code;
         sync();
     }
 
     function startGame() { 
-        // Assign one random impostor
         const pids = Object.keys(state.players);
         const impId = pids[Math.floor(Math.random()*pids.length)];
         pids.forEach(id => db.ref(`rooms/${state.code}/players/${id}`).update({ role: (id===impId?'Impostor':'Crewmate') }));
         db.ref(`rooms/${state.code}`).update({ status: 'playing' }); 
     }
 
+    // --- SYNC & GAME ENGINE ---
     function sync() {
         db.ref(`rooms/${state.code}/players`).on('value', snap => {
             state.players = snap.val() || {};
-            document.getElementById('player-list').innerHTML = Object.values(state.players).map(p => `<div class="p-3 bg-white/5 border-l-4 border-cyan-500 font-bold">${p.name}</div>`).join('');
+            document.getElementById('player-list').innerHTML = Object.values(state.players).map(p => `<div class="p-3 bg-white/5 border-l-4 border-cyan-500 font-bold uppercase text-sm">${p.name}</div>`).join('');
             if(state.players[state.id]) {
                 state.role = state.players[state.id].role;
                 state.status = state.players[state.id].status;
                 document.getElementById('role-tag').innerText = state.role;
-                document.getElementById('role-tag').style.color = state.role === 'Impostor' ? 'red' : 'cyan';
+                document.getElementById('role-tag').style.color = state.role === 'Impostor' ? '#ff003c' : '#00f3ff';
             }
             renderMap();
-            checkVictory();
+            checkWinCondition();
         });
 
         db.ref(`rooms/${state.code}/status`).on('value', s => { if(s.val()==='playing') { showScreen('hud'); initGPS(); updateHUD(); } });
-        
         db.ref(`rooms/${state.code}/meeting`).on('value', snap => {
             const m = snap.val();
             if(!m || !m.active) { document.getElementById('meeting-overlay').style.display='none'; return; }
@@ -224,14 +220,14 @@
         });
     }
 
-    // --- GAMEPLAY ENGINE ---
     function initGPS() {
         navigator.geolocation.watchPosition(p => {
             if(state.origin.la === 0) { state.origin.la = p.coords.latitude; state.origin.lo = p.coords.longitude; }
+            // Smoother filter for static jitter
             const delta = getDist(state.lat || p.coords.latitude, state.lon || p.coords.longitude, p.coords.latitude, p.coords.longitude);
-            if(delta > 1.5 || state.lat === 0) { state.lat = p.coords.latitude; state.lon = p.coords.longitude; }
+            if(delta > 1.2 || state.lat === 0) { state.lat = p.coords.latitude; state.lon = p.coords.longitude; }
             const dist = getDist(state.origin.la, state.origin.lo, state.lat, state.lon);
-            document.getElementById('gps-tag').innerText = `GPS: LOCK | MOVED: ${dist.toFixed(1)}M`;
+            document.getElementById('gps-tag').innerText = `SAT_LINK: STABLE | MOVED: ${dist.toFixed(1)}M`;
             document.getElementById('task-btn').disabled = (dist < 5);
             db.ref(`rooms/${state.code}/players/${state.id}`).update({ lat: state.lat, lon: state.lon });
             checkBodies();
@@ -260,7 +256,7 @@
         const b = document.getElementById('task-btn'); const v = document.getElementById('v-cam');
         if(b.innerText === "DO TASK") {
             const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            v.srcObject = s; v.classList.remove('hidden'); b.innerText = "VERIFY";
+            v.srcObject = s; v.classList.remove('hidden'); b.innerText = "VERIFY AI";
         } else {
             const cvs = document.createElement('canvas'); cvs.width = 100; cvs.height = 100;
             cvs.getContext('2d').drawImage(v, 0, 0, 100, 100);
@@ -268,27 +264,27 @@
             const targetH = state.tasks[state.cur]?.hash || "";
             let diff = 0; for(let i=0; i<100; i++) if(crewH[i] !== targetH[i]) diff++;
             const match = 100 - diff;
+            document.getElementById('ai-score').innerText = `MATCH: ${match}%`;
             if(match > 55) {
                 v.srcObject.getTracks().forEach(t => t.stop()); v.classList.add('hidden');
                 state.cur++; state.origin = { la: state.lat, lo: state.lon }; 
-                b.innerText = "DO TASK"; b.disabled = true; updateHUD(); alert("DONE!");
-            } else { alert("AI REJECTED ("+match+"%)"); b.innerText = "DO TASK"; }
+                b.innerText = "DO TASK"; b.disabled = true; updateHUD(); alert("INTEL VERIFIED!");
+            } else { alert("AI REJECTED! Capture area properly."); b.innerText = "DO TASK"; }
         }
     }
 
     function updateHUD() {
         const t = state.tasks[state.cur];
         if(t) { document.getElementById('hud-task').innerText = t.name; document.getElementById('hud-img').src = t.img; }
-        else { document.getElementById('hud-task').innerText = "TASKS COMPLETE"; }
+        else { document.getElementById('hud-task').innerText = "ALL TASKS CLEAR"; }
     }
 
-    // --- MEETING LOGIC ---
+    // --- EMERGENCY & VOTING ---
     function callMeet() { if(state.meets > 0 && state.status==='alive') { document.getElementById('meeting-overlay').style.display='flex'; document.getElementById('m-setup').style.display='block'; } }
-    
     function startMeet() {
         const t = document.getElementById('m-dur').value || 30;
         db.ref(`rooms/${state.code}/meeting`).set({ active: true, caller: state.id, timer: t, phase: 'discussion', startTime: Date.now() });
-        state.meets--; document.getElementById('meet-btn').innerText = `MEETING (${state.meets})`;
+        state.meets--; document.getElementById('meet-btn').innerText = `MEET (${state.meets})`;
         document.getElementById('m-setup').style.display='none';
     }
 
@@ -311,7 +307,7 @@
     function renderVotes() {
         const l = document.getElementById('v-list'); l.innerHTML = "";
         Object.values(state.players).forEach(p => { if(p.status==='alive') {
-            const b = document.createElement('button'); b.className="p-3 bg-white/10 rounded-xl font-bold";
+            const b = document.createElement('button'); b.className="p-3 bg-white/10 rounded-xl font-bold uppercase text-xs";
             b.innerText = p.name; b.onclick = () => { if(!state.voted){ db.ref(`rooms/${state.code}/votes/${p.id}`).transaction(c=>(c||0)+1); state.voted=true; b.classList.add('bg-cyan-600'); } };
             l.appendChild(b);
         }});
@@ -320,7 +316,10 @@
     async function tally() {
         const v = (await db.ref(`rooms/${state.code}/votes`).once('value')).val() || {};
         let max=0, target=null; for(let id in v) { if(v[id]>max){ max=v[id]; target=id; } }
-        if(target) db.ref(`rooms/${state.code}/players/${target}`).update({ status: 'dead' });
+        if(target) {
+            db.ref(`rooms/${state.code}/players/${target}`).update({ status: 'dead' });
+            alert(state.players[target].name + " was " + state.players[target].role);
+        }
         db.ref(`rooms/${state.code}/meeting`).remove(); db.ref(`rooms/${state.code}/votes`).remove();
         state.voted = false; document.getElementById('v-section').classList.add('hidden'); document.getElementById('v-list').innerHTML="";
     }
@@ -331,32 +330,4 @@
         document.getElementById('report-btn').style.opacity = near ? "1" : "0.3";
     }
 
-    function reportBody() { if(document.getElementById('report-btn').style.opacity === "1") callMeet(); }
-
-    function checkVictory() {
-        const ps = Object.values(state.players); if(ps.length < 2) return;
-        const alive = ps.filter(p => p.status === 'alive');
-        const imps = alive.filter(p => p.role === 'Impostor').length;
-        const crews = alive.filter(p => p.role === 'Crewmate').length;
-
-        if(imps === 0) end("VICTORY", "Impostor Eliminated");
-        else if(crews <= imps) end("DEFEAT", "Impostor Won");
-    }
-
-    function end(t, s) { 
-        document.getElementById('game-result').style.display='flex';
-        document.getElementById('res-title').innerText = t;
-        document.getElementById('res-title').style.color = t==='VICTORY'?'#00f3ff':'#ff003c';
-        document.getElementById('res-sub').innerText = s;
-    }
-
-    function getDist(la1, lo1, la2, lo2) {
-        const R = 6371000;
-        const dLat = (la2-la1)*Math.PI/180;
-        const dLon = (lo2-lo1)*Math.PI/180;
-        const a = Math.sin(dLat/2)**2 + Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLon/2)**2;
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    }
-</script>
-</body>
-</html>
+    function reportBody() { if(document.getEl
