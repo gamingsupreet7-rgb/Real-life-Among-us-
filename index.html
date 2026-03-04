@@ -15,15 +15,14 @@
         .screen.active { display: flex !important; }
         .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; }
         
-        /* MEGA MAP - Extra Large */
         #map-overlay { position: fixed; inset: 0; background: #000; z-index: 5000; display: none; flex-direction: column; padding: 10px; }
-        #big-map { width: 100%; height: 85vh; border: 2px solid #00f3ff; border-radius: 25px; position: relative; background: radial-gradient(circle, #0a1520 0%, #000 100%); overflow: hidden; }
+        #big-map { width: 100%; height: 82vh; border: 2px solid #00f3ff; border-radius: 25px; position: relative; background: radial-gradient(circle, #0a1520 0%, #000 100%); overflow: hidden; }
         
-        .p-dot { width: 18px; height: 18px; border-radius: 50%; position: absolute; transform: translate(-50%, -50%); border: 2px solid #fff; transition: all 0.6s cubic-bezier(0.1, 0.5, 0.5, 1); box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        .p-dot { width: 18px; height: 18px; border-radius: 50%; position: absolute; transform: translate(-50%, -50%); border: 2px solid #fff; transition: all 0.5s linear; box-shadow: 0 0 10px rgba(0,243,255,0.5); }
         .body-mark { position: absolute; color: #ff003c; transform: translate(-50%, -50%); font-size: 28px; text-shadow: 0 0 15px red; }
 
         .btn-kill { background: #222; color: #444; transition: 0.3s; pointer-events: none; }
-        .btn-kill.active { background: #ff003c; color: white; box-shadow: 0 0 25px #ff003c; pointer-events: auto; }
+        .btn-kill.active { background: #ff003c !important; color: white !important; box-shadow: 0 0 25px #ff003c; pointer-events: auto; }
         #meeting-ui { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
@@ -32,26 +31,26 @@
     <div id="scr-login" class="screen active justify-center">
         <h1 class="text-6xl font-black italic text-center mb-10 tracking-tighter">TACTICAL<br><span class="text-cyan-400 font-['Orbitron'] text-2xl tracking-[0.3em]">AMONG US</span></h1>
         <div class="glass p-8 space-y-5">
-            <input id="p-name" type="text" placeholder="AGENT NAME" class="w-full bg-black/60 p-5 rounded-2xl border border-white/10 text-center font-bold uppercase text-cyan-400 text-xl">
-            <button onclick="initApp()" class="w-full py-5 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl font-black text-white text-2xl">INITIALIZE</button>
+            <input id="p-name" type="text" placeholder="AGENT NAME" class="w-full bg-black/60 p-5 rounded-2xl border border-white/10 text-center font-bold uppercase text-cyan-400 text-xl focus:outline-none focus:border-cyan-500">
+            <button onclick="initApp()" class="w-full py-5 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl font-black text-white text-2xl active:scale-95 transition-transform">INITIALIZE</button>
         </div>
     </div>
 
     <div id="scr-mode" class="screen justify-center space-y-6">
-        <button onclick="show('scr-setup')" class="glass p-12 text-center border-cyan-500/30">
+        <button onclick="show('scr-setup')" class="glass p-12 text-center border-cyan-500/30 active:bg-cyan-500/10">
             <i class="fas fa-satellite-dish text-6xl mb-4 text-cyan-400"></i>
             <h3 class="text-2xl font-black uppercase">Host Mission</h3>
         </button>
         <div class="glass p-8 flex flex-col gap-4">
-            <input id="join-code" type="text" placeholder="6-DIGIT CODE" class="bg-black/50 p-4 rounded-xl text-center border border-white/10 text-2xl font-mono uppercase">
-            <button onclick="joinGame()" class="w-full bg-green-600 py-5 rounded-xl font-black text-xl uppercase">Join Sync</button>
+            <input id="join-code" type="text" placeholder="6-DIGIT CODE" class="bg-black/50 p-4 rounded-xl text-center border border-white/10 text-2xl font-mono uppercase focus:outline-none">
+            <button onclick="joinGame()" class="w-full bg-green-600 py-5 rounded-xl font-black text-xl uppercase active:scale-95">Join Sync</button>
         </div>
     </div>
 
     <div id="scr-setup" class="screen overflow-y-auto">
         <h2 class="text-3xl font-bold text-cyan-400 mb-6 font-['Orbitron']">INTEL SETUP</h2>
         <div class="glass p-6 space-y-5">
-            <input id="t-name" type="text" placeholder="LOCATION NAME (e.g. Balcony)" class="w-full bg-black p-5 rounded-xl border border-white/10 font-bold">
+            <input id="t-name" type="text" placeholder="LOCATION NAME" class="w-full bg-black p-5 rounded-xl border border-white/10 font-bold">
             <input type="file" id="t-file" class="hidden" accept="image/*" onchange="handleFile(this)">
             <button onclick="document.getElementById('t-file').click()" id="upload-box" class="w-full py-12 border-2 border-dashed border-cyan-500/30 rounded-2xl text-gray-400 font-bold flex flex-col items-center justify-center gap-3 bg-black/40">
                 <i class="fas fa-camera text-3xl"></i>
@@ -65,9 +64,9 @@
     </div>
 
     <div id="scr-lobby" class="screen items-center justify-center text-center">
-        <p class="text-cyan-400 font-bold tracking-[0.5em] mb-2 text-sm">ROOM CODE</p>
-        <h1 id="view-code" class="text-8xl font-black mb-10 font-['Orbitron'] tracking-tighter">000000</h1>
-        <div id="p-list" class="w-full glass p-8 min-h-[250px] mb-12 space-y-3"></div>
+        <p class="text-cyan-400 font-bold tracking-[0.5em] mb-2 text-sm uppercase">Room Code</p>
+        <h1 id="view-code" class="text-8xl font-black mb-10 font-['Orbitron']">000000</h1>
+        <div id="p-list" class="w-full glass p-8 min-h-[200px] mb-12 space-y-3"></div>
         <button id="start-btn" onclick="launch()" class="hidden w-full bg-green-600 py-6 rounded-2xl font-black text-2xl uppercase">Start Mission</button>
     </div>
 
@@ -86,15 +85,15 @@
         <div class="glass p-5 flex items-center gap-5 mb-5 border-l-4 border-cyan-500">
             <img id="hud-task-img" src="" class="w-20 h-20 object-cover rounded-xl border-2 border-white/10 opacity-70">
             <div>
-                <p class="text-[10px] text-cyan-400 font-black uppercase tracking-widest">Mission Objective</p>
-                <h3 id="hud-task-name" class="text-2xl font-black uppercase tracking-tighter">SEARCHING...</h3>
+                <p class="text-[10px] text-cyan-400 font-black uppercase">Objective</p>
+                <h3 id="hud-task-name" class="text-2xl font-black uppercase tracking-tighter">WAITING...</h3>
             </div>
         </div>
 
         <video id="v-cam" class="hidden w-full h-48 bg-black rounded-[30px] border-2 border-cyan-500/30 mb-5 object-cover" autoplay playsinline></video>
 
         <div class="grid grid-cols-2 gap-5 mt-auto pb-6">
-            <button id="task-btn" onclick="runTask()" class="py-12 bg-gradient-to-b from-cyan-500 to-blue-700 rounded-[35px] font-black text-2xl shadow-xl shadow-cyan-900/40">TASK</button>
+            <button id="task-btn" onclick="runTask()" class="py-12 bg-gradient-to-b from-cyan-500 to-blue-700 rounded-[35px] font-black text-2xl shadow-xl">TASK</button>
             <div class="flex flex-col gap-5">
                 <button id="kill-btn" onclick="killPlayer()" class="btn-kill flex-1 rounded-[30px] font-black text-xl hidden">KILL</button>
                 <button id="report-btn" onclick="report()" class="bg-red-900/20 text-red-500 border-2 border-red-500/30 rounded-[30px] flex-1 font-black text-sm opacity-30">REPORT</button>
@@ -103,7 +102,7 @@
     </div>
 
     <div id="map-overlay">
-        <h2 class="text-center font-['Orbitron'] text-cyan-400 text-2xl py-4 tracking-widest">TACTICAL OVERLAY</h2>
+        <h2 class="text-center font-['Orbitron'] text-cyan-400 text-2xl py-4 uppercase">Mega Map</h2>
         <div id="big-map"><div id="map-players"></div></div>
         <button onclick="toggleMap()" class="w-full mt-4 py-6 bg-white/10 rounded-2xl font-black text-xl border border-white/20 uppercase">Exit Map</button>
     </div>
@@ -112,31 +111,37 @@
         <h2 id="meet-title" class="text-5xl font-['Orbitron'] text-red-500 mb-2 italic">DISCUSSION</h2>
         <div id="meet-timer" class="text-9xl font-['Orbitron'] mb-10">00</div>
         <div id="meet-setup" class="w-full max-w-sm text-center p-6 glass">
-            <p class="text-gray-400 text-xs font-bold mb-4 uppercase">Set Discussion Seconds</p>
             <input id="set-disc-time" type="number" value="30" class="w-full bg-black p-6 rounded-2xl text-center mb-6 text-4xl border border-cyan-500/30 text-cyan-400 font-black">
             <button onclick="confirmMeet()" class="w-full py-5 bg-cyan-600 rounded-2xl font-black text-xl uppercase">Start Timer</button>
         </div>
         <div id="vote-section" class="w-full max-w-sm hidden px-4">
-            <p class="text-cyan-400 mb-6 font-black text-center text-xl tracking-widest uppercase">Voting: <span id="v-timer" class="text-white">20</span>s</p>
+            <p class="text-cyan-400 mb-6 font-black text-center text-xl uppercase">Voting: <span id="v-timer" class="text-white">20</span>s</p>
             <div id="vote-list" class="grid grid-cols-2 gap-4"></div>
         </div>
     </div>
 
 <script>
-    // --- APP CORE ---
+    // --- GLOBAL STATE ---
+    let state = { id: 'p_'+Math.random().toString(36).substr(2,4), name:'', code:'', tasks:[], cur:0, role:'Crewmate', status:'alive', lat:0, lon:0, origin:{la:0, lo:0}, players:{} };
+
+    // --- NAVIGATION (SABSE PEHLE YE CHALAYEGA) ---
     function show(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
+        const target = document.getElementById(id);
+        if(target) target.classList.add('active');
     }
 
     function initApp() {
         const val = document.getElementById('p-name').value;
-        if(val.trim().length < 2) return;
+        if(val.trim().length < 2) {
+            alert("Naam toh likho bhai!");
+            return;
+        }
         state.name = val.toUpperCase();
-        show('scr-mode');
+        show('scr-mode'); // INSTANT SCREEN CHANGE
     }
 
-    // --- FIREBASE ---
+    // --- FIREBASE CONFIG ---
     const firebaseConfig = {
         apiKey: "AIzaSyDbR67XE2iBcqQUkrDjjr7LQtLUNpyUdB8",
         databaseURL: "https://rl-amongus-real-life-amo-5542a-default-rtdb.firebaseio.com",
@@ -146,9 +151,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let state = { id: 'p_'+Math.random().toString(36).substr(2,4), name:'', code:'', tasks:[], cur:0, role:'Crewmate', status:'alive', lat:0, lon:0, origin:{la:0, lo:0}, players:{} };
-
-    // --- TASK FIX (IMAGE & ADD BUTTON) ---
+    // --- TASK MANAGEMENT (FIXED IMAGE & SAVE) ---
     function handleFile(input) {
         if (!input.files || !input.files[0]) return;
         const reader = new FileReader();
@@ -157,64 +160,53 @@
             img.src = e.target.result;
             img.classList.remove('hidden');
             document.getElementById('t-hint').classList.add('hidden');
-            document.getElementById('upload-box').classList.add('border-cyan-500');
         };
         reader.readAsDataURL(input.files[0]);
     }
 
-    async function saveTask() {
+    function saveTask() {
         const name = document.getElementById('t-name').value;
         const imgData = document.getElementById('t-prev').src;
-        if(!name || imgData.includes('t-hint')) {
-            alert("Please provide Task Name and Photo!");
-            return;
-        }
+        if(!name || imgData.includes('t-hint')) return alert("Photo aur Name dono chahiye!");
+
+        state.tasks.push({ name, img: imgData });
         
-        // Simulating hash for verification
-        const hash = name.length + Math.random().toString(); 
-        state.tasks.push({ name, img: imgData, hash });
-        
-        // Reset UI
-        document.getElementById('t-list').innerHTML += `<div class="flex-shrink-0 w-16 h-16 rounded-xl border-2 border-cyan-500 overflow-hidden"><img src="${imgData}" class="w-full h-full object-cover"></div>`;
+        // Update List UI
+        const list = document.getElementById('t-list');
+        const item = document.createElement('div');
+        item.className = "flex-shrink-0 w-16 h-16 rounded-xl border-2 border-cyan-500 overflow-hidden";
+        item.innerHTML = `<img src="${imgData}" class="w-full h-full object-cover">`;
+        list.appendChild(item);
+
+        // Reset
         document.getElementById('t-name').value = '';
         document.getElementById('t-prev').classList.add('hidden');
         document.getElementById('t-hint').classList.remove('hidden');
-        document.getElementById('upload-box').classList.remove('border-cyan-500');
     }
 
     // --- GPS & SMOOTHING ---
-    let lastLat = 0, lastLon = 0;
     function initGPS() {
         navigator.geolocation.watchPosition(p => {
             let lat = p.coords.latitude;
             let lon = p.coords.longitude;
-
-            // Simple Lerp Smoothing
-            if(lastLat !== 0) {
-                lat = lastLat + (lat - lastLat) * 0.4;
-                lon = lastLon + (lon - lastLon) * 0.4;
-            }
-            lastLat = lat; lastLon = lon;
-
             if(state.origin.la === 0) { state.origin.la = lat; state.origin.lo = lon; }
             state.lat = lat; state.lon = lon;
-            
-            document.getElementById('hud-gps').innerText = `LOC: ${lat.toFixed(6)} | ${lon.toFixed(6)}`;
-            db.ref(`rooms/${state.code}/players/${state.id}`).update({ lat: lat, lon: lon });
-        }, err => console.error(err), { enableHighAccuracy: true, maximumAge: 0 });
+            document.getElementById('hud-gps').innerText = `SAT_LINK: STABLE | ${lat.toFixed(5)}`;
+            db.ref(`rooms/${state.code}/players/${state.id}`).update({ lat, lon });
+        }, null, { enableHighAccuracy: true });
     }
 
-    // --- GAME ACTIONS ---
+    // --- SYNC & ACTIONS ---
     async function createRoom() {
-        if(state.tasks.length === 0) return alert("Add at least 1 task!");
+        if(state.tasks.length === 0) return alert("Task add karo!");
         state.code = Math.floor(100000 + Math.random()*900000).toString();
         await db.ref('rooms/'+state.code).set({ status:'lobby', tasks: state.tasks });
         joinGame(state.code);
         document.getElementById('start-btn').classList.remove('hidden');
     }
 
-    function joinGame(c) {
-        state.code = c || document.getElementById('join-code').value.toUpperCase();
+    function joinGame(override) {
+        state.code = override || document.getElementById('join-code').value.toUpperCase();
         if(!state.code) return;
         db.ref(`rooms/${state.code}/players/${state.id}`).set({ name: state.name, role:'Crewmate', status:'alive', lat:0, lon:0, id: state.id });
         document.getElementById('view-code').innerText = state.code;
@@ -225,19 +217,18 @@
     function sync() {
         db.ref(`rooms/${state.code}/players`).on('value', snap => {
             state.players = snap.val() || {};
-            document.getElementById('p-list').innerHTML = Object.values(state.players).map(p => `<div class="p-4 bg-white/5 border-l-4 border-cyan-500 font-bold uppercase text-xs flex justify-between"><span>${p.name}</span> <span class="text-cyan-400 opacity-40 italic">Online</span></div>`).join('');
+            const plist = document.getElementById('p-list');
+            plist.innerHTML = Object.values(state.players).map(p => `<div class="p-4 bg-white/5 border-l-4 border-cyan-500 font-bold uppercase text-xs">${p.name}</div>`).join('');
             
             const me = state.players[state.id];
             if(me) {
-                state.role = me.role;
-                state.status = me.status;
+                state.role = me.role; state.status = me.status;
                 document.getElementById('hud-role').innerText = state.role;
                 document.getElementById('hud-role').style.color = state.role === 'Impostor' ? '#ff003c' : '#00f3ff';
                 if(state.role === 'Impostor') document.getElementById('kill-btn').classList.remove('hidden');
-                if(state.status === 'dead') document.body.style.filter = "grayscale(1)";
             }
             updateMap();
-            checkKillReport();
+            checkActions();
         });
 
         db.ref(`rooms/${state.code}/status`).on('value', s => {
@@ -251,7 +242,7 @@
         db.ref(`rooms/${state.code}/meeting`).on('value', snap => {
             const m = snap.val();
             if(m && m.active) handleMeetingUI(m);
-            else { document.getElementById('meeting-ui').style.display = 'none'; document.getElementById('vote-list').innerHTML = ""; }
+            else document.getElementById('meeting-ui').style.display = 'none';
         });
     }
 
@@ -279,15 +270,15 @@
         }
     }
 
-    function checkKillReport() {
+    function checkActions() {
         if(state.status === 'dead') return;
         let canKill = false, canReport = false;
         for(let id in state.players) {
             if(id === state.id) continue;
             const p = state.players[id];
-            const dist = getDist(state.lat, state.lon, p.lat, p.lon);
-            if(state.role === 'Impostor' && p.role === 'Crewmate' && p.status === 'alive' && dist < 4) canKill = true;
-            if(p.status === 'dead' && dist < 5) canReport = true;
+            const d = getDist(state.lat, state.lon, p.lat, p.lon);
+            if(state.role === 'Impostor' && p.role === 'Crewmate' && p.status === 'alive' && d < 4) canKill = true;
+            if(p.status === 'dead' && d < 5) canReport = true;
         }
         const kb = document.getElementById('kill-btn');
         if(canKill) kb.classList.add('active'); else kb.classList.remove('active');
@@ -300,7 +291,7 @@
             const p = state.players[id];
             if(p.role === 'Crewmate' && p.status === 'alive' && getDist(state.lat, state.lon, p.lat, p.lon) < 4) {
                 db.ref(`rooms/${state.code}/players/${id}`).update({ status: 'dead' });
-                alert("Target Ejected!"); break;
+                alert("Target Neutralized!"); break;
             }
         }
     }
@@ -310,7 +301,7 @@
         m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
     }
 
-    // --- MEETING LOGIC ---
+    // --- MEETING ---
     function callMeeting() {
         if(state.status === 'dead') return;
         db.ref(`rooms/${state.code}/meeting`).set({ active: true, phase: 'setup' });
@@ -328,8 +319,7 @@
             document.getElementById('vote-section').style.display = 'none';
         } else if(m.phase === 'disc') {
             document.getElementById('meet-setup').style.display = 'none';
-            const elapsed = Math.floor((Date.now() - m.start)/1000);
-            const rem = m.time - elapsed;
+            const rem = m.time - Math.floor((Date.now() - m.start)/1000);
             document.getElementById('meet-timer').innerText = rem > 0 ? rem : "VOTE";
             if(rem <= 0 && state.id === m.caller) db.ref(`rooms/${state.code}/meeting`).update({ phase: 'vote', start: Date.now() });
         } else {
@@ -345,7 +335,7 @@
         const list = document.getElementById('vote-list'); list.innerHTML = "";
         Object.values(state.players).forEach(p => {
             if(p.status === 'alive') {
-                const b = document.createElement('button'); b.className = "p-5 bg-white/10 rounded-2xl font-black text-xs uppercase border border-white/5";
+                const b = document.createElement('button'); b.className = "p-5 bg-white/10 rounded-2xl font-black text-xs uppercase";
                 b.innerText = p.name;
                 b.onclick = () => { db.ref(`rooms/${state.code}/votes/${p.id}`).transaction(c => (c||0)+1); list.innerHTML = "<p class='col-span-2 text-cyan-400 font-bold'>VOTE RECORDED</p>"; };
                 list.appendChild(b);
@@ -354,4 +344,16 @@
     }
 
     async function tallyVotes() {
-        const snap = await 
+        const snap = await db.ref(`rooms/${state.code}/votes`).once('value');
+        const v = snap.val() || {};
+        let max = 0, target = null;
+        for(let id in v) { if(v[id] > max) { max = v[id]; target = id; } }
+        if(target) { db.ref(`rooms/${state.code}/players/${target}`).update({ status: 'dead' }); }
+        db.ref(`rooms/${state.code}/meeting`).remove(); db.ref(`rooms/${state.code}/votes`).remove();
+    }
+
+    async function runTask() {
+        const b = document.getElementById('task-btn'); const v = document.getElementById('v-cam');
+        if(b.innerText === "TASK") {
+            const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            v.srcObject = s; v.cla
