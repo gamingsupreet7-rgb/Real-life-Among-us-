@@ -2,8 +2,8 @@
 <html lang="hi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Among Us: Tactical Perfect</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Among Us Tactical - Stable</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -11,89 +11,90 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Rajdhani:wght@700&display=swap');
         body { margin: 0; background: #000; color: #fff; font-family: 'Rajdhani', sans-serif; overflow: hidden; touch-action: manipulation; }
+        
+        /* SCREEN VISIBILITY - FIXED */
         .screen { position: absolute; inset: 0; display: none; padding: 20px; flex-direction: column; background: #000; z-index: 10; }
-        .screen.active { display: flex !important; }
+        .screen.active { display: flex !important; visibility: visible !important; opacity: 1 !important; }
+        
         .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; }
         
+        /* MEGA MAP */
         #map-overlay { position: fixed; inset: 0; background: #000; z-index: 5000; display: none; flex-direction: column; padding: 10px; }
-        #big-map { width: 100%; height: 82vh; border: 2px solid #00f3ff; border-radius: 25px; position: relative; background: radial-gradient(circle, #0a1520 0%, #000 100%); overflow: hidden; }
+        #big-map { width: 100%; height: 80vh; border: 2px solid #00f3ff; border-radius: 25px; position: relative; background: #050a10; overflow: hidden; }
         
-        .p-dot { width: 18px; height: 18px; border-radius: 50%; position: absolute; transform: translate(-50%, -50%); border: 2px solid #fff; transition: all 0.5s linear; box-shadow: 0 0 10px rgba(0,243,255,0.5); }
-        .body-mark { position: absolute; color: #ff003c; transform: translate(-50%, -50%); font-size: 28px; text-shadow: 0 0 15px red; }
-
-        .btn-kill { background: #222; color: #444; transition: 0.3s; pointer-events: none; }
-        .btn-kill.active { background: #ff003c !important; color: white !important; box-shadow: 0 0 25px #ff003c; pointer-events: auto; }
+        .p-dot { width: 18px; height: 18px; border-radius: 50%; position: absolute; transform: translate(-50%, -50%); border: 2px solid #fff; transition: all 0.5s linear; }
+        
+        .btn-kill { background: #222; color: #444; }
+        .btn-kill.active { background: #ff003c !important; color: white !important; box-shadow: 0 0 25px #ff003c; }
         #meeting-ui { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
-    <div id="scr-login" class="screen active justify-center">
-        <h1 class="text-6xl font-black italic text-center mb-10 tracking-tighter">TACTICAL<br><span class="text-cyan-400 font-['Orbitron'] text-2xl tracking-[0.3em]">AMONG US</span></h1>
-        <div class="glass p-8 space-y-5">
-            <input id="p-name" type="text" placeholder="AGENT NAME" class="w-full bg-black/60 p-5 rounded-2xl border border-white/10 text-center font-bold uppercase text-cyan-400 text-xl focus:outline-none focus:border-cyan-500">
-            <button onclick="initApp()" class="w-full py-5 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl font-black text-white text-2xl active:scale-95 transition-transform">INITIALIZE</button>
+    <div id="scr-login" class="screen active">
+        <div class="my-auto">
+            <h1 class="text-6xl font-black italic text-center mb-10 tracking-tighter">TACTICAL<br><span class="text-cyan-400 font-['Orbitron'] text-2xl tracking-[0.3em]">AMONG US</span></h1>
+            <div class="glass p-8 space-y-5">
+                <input id="p-name" type="text" placeholder="ENTER NAME" class="w-full bg-black/60 p-5 rounded-2xl border border-white/20 text-center font-bold uppercase text-cyan-400 text-xl focus:border-cyan-500 outline-none">
+                <button onclick="initApp()" class="w-full py-6 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl font-black text-white text-2xl shadow-lg">INITIALIZE</button>
+            </div>
         </div>
     </div>
 
     <div id="scr-mode" class="screen justify-center space-y-6">
-        <button onclick="show('scr-setup')" class="glass p-12 text-center border-cyan-500/30 active:bg-cyan-500/10">
+        <button onclick="show('scr-setup')" class="glass p-12 text-center border-cyan-500/30">
             <i class="fas fa-satellite-dish text-6xl mb-4 text-cyan-400"></i>
             <h3 class="text-2xl font-black uppercase">Host Mission</h3>
         </button>
         <div class="glass p-8 flex flex-col gap-4">
-            <input id="join-code" type="text" placeholder="6-DIGIT CODE" class="bg-black/50 p-4 rounded-xl text-center border border-white/10 text-2xl font-mono uppercase focus:outline-none">
-            <button onclick="joinGame()" class="w-full bg-green-600 py-5 rounded-xl font-black text-xl uppercase active:scale-95">Join Sync</button>
+            <input id="join-code" type="text" placeholder="CODE" class="bg-black/50 p-4 rounded-xl text-center border border-white/10 text-2xl font-mono uppercase">
+            <button onclick="joinGame()" class="w-full bg-green-600 py-5 rounded-xl font-black text-xl uppercase">Join Sync</button>
         </div>
     </div>
 
     <div id="scr-setup" class="screen overflow-y-auto">
         <h2 class="text-3xl font-bold text-cyan-400 mb-6 font-['Orbitron']">INTEL SETUP</h2>
         <div class="glass p-6 space-y-5">
-            <input id="t-name" type="text" placeholder="LOCATION NAME" class="w-full bg-black p-5 rounded-xl border border-white/10 font-bold">
+            <input id="t-name" type="text" placeholder="TASK NAME" class="w-full bg-black p-5 rounded-xl border border-white/10 font-bold">
             <input type="file" id="t-file" class="hidden" accept="image/*" onchange="handleFile(this)">
-            <button onclick="document.getElementById('t-file').click()" id="upload-box" class="w-full py-12 border-2 border-dashed border-cyan-500/30 rounded-2xl text-gray-400 font-bold flex flex-col items-center justify-center gap-3 bg-black/40">
-                <i class="fas fa-camera text-3xl"></i>
-                <span id="t-hint">TAP TO CAPTURE TARGET</span>
+            <div onclick="document.getElementById('t-file').click()" class="w-full py-12 border-2 border-dashed border-cyan-500/30 rounded-2xl text-gray-400 font-bold flex flex-col items-center justify-center bg-black/40">
+                <span id="t-hint">TAP TO ADD IMAGE</span>
                 <img id="t-prev" class="hidden w-full h-40 object-cover rounded-xl mt-2 border-2 border-cyan-500">
-            </button>
-            <button onclick="saveTask()" class="w-full py-5 bg-cyan-600 rounded-2xl font-black text-xl uppercase shadow-lg shadow-cyan-500/20">Add Task</button>
+            </div>
+            <button onclick="saveTask()" class="w-full py-5 bg-cyan-600 rounded-2xl font-black text-xl uppercase">Add Task</button>
         </div>
         <div id="t-list" class="flex gap-4 mt-6 overflow-x-auto p-2"></div>
-        <button onclick="createRoom()" class="mt-10 py-6 bg-gradient-to-r from-blue-700 to-cyan-500 rounded-2xl font-black text-2xl mb-10">OPEN LOBBY</button>
+        <button onclick="createRoom()" class="mt-auto py-6 bg-gradient-to-r from-blue-700 to-cyan-500 rounded-2xl font-black text-2xl mb-10">OPEN LOBBY</button>
     </div>
 
     <div id="scr-lobby" class="screen items-center justify-center text-center">
-        <p class="text-cyan-400 font-bold tracking-[0.5em] mb-2 text-sm uppercase">Room Code</p>
+        <p class="text-cyan-400 font-bold mb-2">ROOM CODE</p>
         <h1 id="view-code" class="text-8xl font-black mb-10 font-['Orbitron']">000000</h1>
         <div id="p-list" class="w-full glass p-8 min-h-[200px] mb-12 space-y-3"></div>
-        <button id="start-btn" onclick="launch()" class="hidden w-full bg-green-600 py-6 rounded-2xl font-black text-2xl uppercase">Start Mission</button>
+        <button id="start-btn" onclick="launch()" class="hidden w-full bg-green-600 py-6 rounded-2xl font-black text-2xl">START MISSION</button>
     </div>
 
     <div id="scr-hud" class="screen">
         <div class="flex justify-between items-center mb-4">
             <div>
                 <h2 id="hud-role" class="text-4xl font-black italic uppercase leading-none">CREWMATE</h2>
-                <p id="hud-gps" class="text-[11px] text-cyan-500 font-mono mt-2 font-bold uppercase tracking-widest">GPS: SYNCING...</p>
+                <p id="hud-gps" class="text-[11px] text-cyan-500 font-mono mt-2 font-bold">GPS: SEARCHING...</p>
             </div>
             <div class="flex gap-3">
-                <button onclick="toggleMap()" class="bg-white/10 p-4 rounded-2xl border border-white/20 text-xl"><i class="fas fa-map-marked-alt text-cyan-400"></i></button>
+                <button onclick="toggleMap()" class="bg-white/10 p-4 rounded-2xl border border-white/20"><i class="fas fa-map-marked-alt text-cyan-400"></i></button>
                 <button onclick="callMeeting()" class="bg-orange-600 px-5 py-3 rounded-2xl text-[10px] font-black uppercase">Emergency</button>
             </div>
         </div>
 
         <div class="glass p-5 flex items-center gap-5 mb-5 border-l-4 border-cyan-500">
             <img id="hud-task-img" src="" class="w-20 h-20 object-cover rounded-xl border-2 border-white/10 opacity-70">
-            <div>
-                <p class="text-[10px] text-cyan-400 font-black uppercase">Objective</p>
-                <h3 id="hud-task-name" class="text-2xl font-black uppercase tracking-tighter">WAITING...</h3>
-            </div>
+            <h3 id="hud-task-name" class="text-2xl font-black uppercase tracking-tighter">WAITING...</h3>
         </div>
 
         <video id="v-cam" class="hidden w-full h-48 bg-black rounded-[30px] border-2 border-cyan-500/30 mb-5 object-cover" autoplay playsinline></video>
 
         <div class="grid grid-cols-2 gap-5 mt-auto pb-6">
-            <button id="task-btn" onclick="runTask()" class="py-12 bg-gradient-to-b from-cyan-500 to-blue-700 rounded-[35px] font-black text-2xl shadow-xl">TASK</button>
+            <button id="task-btn" onclick="runTask()" class="py-12 bg-gradient-to-b from-cyan-500 to-blue-700 rounded-[35px] font-black text-2xl">TASK</button>
             <div class="flex flex-col gap-5">
                 <button id="kill-btn" onclick="killPlayer()" class="btn-kill flex-1 rounded-[30px] font-black text-xl hidden">KILL</button>
                 <button id="report-btn" onclick="report()" class="bg-red-900/20 text-red-500 border-2 border-red-500/30 rounded-[30px] flex-1 font-black text-sm opacity-30">REPORT</button>
@@ -102,46 +103,57 @@
     </div>
 
     <div id="map-overlay">
-        <h2 class="text-center font-['Orbitron'] text-cyan-400 text-2xl py-4 uppercase">Mega Map</h2>
+        <h2 class="text-center font-['Orbitron'] text-cyan-400 text-2xl py-4">MEGA MAP</h2>
         <div id="big-map"><div id="map-players"></div></div>
         <button onclick="toggleMap()" class="w-full mt-4 py-6 bg-white/10 rounded-2xl font-black text-xl border border-white/20 uppercase">Exit Map</button>
     </div>
 
     <div id="meeting-ui">
-        <h2 id="meet-title" class="text-5xl font-['Orbitron'] text-red-500 mb-2 italic">DISCUSSION</h2>
-        <div id="meet-timer" class="text-9xl font-['Orbitron'] mb-10">00</div>
-        <div id="meet-setup" class="w-full max-w-sm text-center p-6 glass">
+        <h2 id="meet-title" class="text-5xl font-['Orbitron'] text-red-500 mb-2 italic text-center">DISCUSSION</h2>
+        <div id="meet-timer" class="text-9xl font-['Orbitron'] mb-10 text-center">00</div>
+        <div id="meet-setup" class="w-full max-w-sm text-center p-6 glass mx-auto">
             <input id="set-disc-time" type="number" value="30" class="w-full bg-black p-6 rounded-2xl text-center mb-6 text-4xl border border-cyan-500/30 text-cyan-400 font-black">
             <button onclick="confirmMeet()" class="w-full py-5 bg-cyan-600 rounded-2xl font-black text-xl uppercase">Start Timer</button>
         </div>
-        <div id="vote-section" class="w-full max-w-sm hidden px-4">
+        <div id="vote-section" class="w-full max-w-sm hidden px-4 mx-auto">
             <p class="text-cyan-400 mb-6 font-black text-center text-xl uppercase">Voting: <span id="v-timer" class="text-white">20</span>s</p>
             <div id="vote-list" class="grid grid-cols-2 gap-4"></div>
         </div>
     </div>
 
 <script>
-    // --- GLOBAL STATE ---
+    // --- APP STATE ---
     let state = { id: 'p_'+Math.random().toString(36).substr(2,4), name:'', code:'', tasks:[], cur:0, role:'Crewmate', status:'alive', lat:0, lon:0, origin:{la:0, lo:0}, players:{} };
 
-    // --- NAVIGATION (SABSE PEHLE YE CHALAYEGA) ---
+    // --- NAVIGATION FIXED ---
     function show(id) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        // Sabhi screens ko hide karo
+        const screens = document.querySelectorAll('.screen');
+        screens.forEach(s => {
+            s.classList.remove('active');
+            s.style.display = 'none';
+        });
+        
+        // Target screen ko show karo
         const target = document.getElementById(id);
-        if(target) target.classList.add('active');
+        if(target) {
+            target.classList.add('active');
+            target.style.display = 'flex';
+        }
     }
 
     function initApp() {
         const val = document.getElementById('p-name').value;
         if(val.trim().length < 2) {
-            alert("Naam toh likho bhai!");
+            alert("Naam daalo bhai!");
             return;
         }
         state.name = val.toUpperCase();
-        show('scr-mode'); // INSTANT SCREEN CHANGE
+        console.log("Initializing Agent:", state.name);
+        show('scr-mode'); // Ye ab 100% kaam karega
     }
 
-    // --- FIREBASE CONFIG ---
+    // --- FIREBASE ---
     const firebaseConfig = {
         apiKey: "AIzaSyDbR67XE2iBcqQUkrDjjr7LQtLUNpyUdB8",
         databaseURL: "https://rl-amongus-real-life-amo-5542a-default-rtdb.firebaseio.com",
@@ -151,9 +163,9 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // --- TASK MANAGEMENT (FIXED IMAGE & SAVE) ---
+    // --- TASK HANDLING FIXED ---
     function handleFile(input) {
-        if (!input.files || !input.files[0]) return;
+        if (!input.files[0]) return;
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = document.getElementById('t-prev');
@@ -167,36 +179,38 @@
     function saveTask() {
         const name = document.getElementById('t-name').value;
         const imgData = document.getElementById('t-prev').src;
-        if(!name || imgData.includes('t-hint')) return alert("Photo aur Name dono chahiye!");
+        if(!name || !imgData || imgData.includes('t-hint')) {
+            alert("Name aur Image dono daalo!");
+            return;
+        }
 
         state.tasks.push({ name, img: imgData });
         
-        // Update List UI
+        // Update horizontal list
         const list = document.getElementById('t-list');
         const item = document.createElement('div');
         item.className = "flex-shrink-0 w-16 h-16 rounded-xl border-2 border-cyan-500 overflow-hidden";
         item.innerHTML = `<img src="${imgData}" class="w-full h-full object-cover">`;
         list.appendChild(item);
 
-        // Reset
+        // Reset inputs
         document.getElementById('t-name').value = '';
         document.getElementById('t-prev').classList.add('hidden');
         document.getElementById('t-hint').classList.remove('hidden');
     }
 
-    // --- GPS & SMOOTHING ---
+    // --- GPS & SYNC (SAB PEHLE WALA) ---
     function initGPS() {
         navigator.geolocation.watchPosition(p => {
             let lat = p.coords.latitude;
             let lon = p.coords.longitude;
             if(state.origin.la === 0) { state.origin.la = lat; state.origin.lo = lon; }
             state.lat = lat; state.lon = lon;
-            document.getElementById('hud-gps').innerText = `SAT_LINK: STABLE | ${lat.toFixed(5)}`;
+            document.getElementById('hud-gps').innerText = `LOC: ${lat.toFixed(5)} | ${lon.toFixed(5)}`;
             db.ref(`rooms/${state.code}/players/${state.id}`).update({ lat, lon });
         }, null, { enableHighAccuracy: true });
     }
 
-    // --- SYNC & ACTIONS ---
     async function createRoom() {
         if(state.tasks.length === 0) return alert("Task add karo!");
         state.code = Math.floor(100000 + Math.random()*900000).toString();
@@ -217,9 +231,7 @@
     function sync() {
         db.ref(`rooms/${state.code}/players`).on('value', snap => {
             state.players = snap.val() || {};
-            const plist = document.getElementById('p-list');
-            plist.innerHTML = Object.values(state.players).map(p => `<div class="p-4 bg-white/5 border-l-4 border-cyan-500 font-bold uppercase text-xs">${p.name}</div>`).join('');
-            
+            document.getElementById('p-list').innerHTML = Object.values(state.players).map(p => `<div class="p-4 bg-white/5 border-l-4 border-cyan-500 font-bold uppercase text-xs">${p.name}</div>`).join('');
             const me = state.players[state.id];
             if(me) {
                 state.role = me.role; state.status = me.status;
@@ -258,7 +270,7 @@
         for(let id in state.players) {
             const p = state.players[id];
             if(p.status === 'dead') {
-                map.innerHTML += `<div class="body-mark" style="left:${50+(p.lon-state.origin.lo)*1500000}%; top:${50+(p.lat-state.origin.la)*1500000}%"><i class="fas fa-skull"></i></div>`;
+                map.innerHTML += `<div class="absolute text-red-600" style="left:${50+(p.lon-state.origin.lo)*1500000}%; top:${50+(p.lat-state.origin.la)*1500000}%"><i class="fas fa-skull"></i></div>`;
                 continue;
             }
             const dot = document.createElement('div');
@@ -291,7 +303,7 @@
             const p = state.players[id];
             if(p.role === 'Crewmate' && p.status === 'alive' && getDist(state.lat, state.lon, p.lat, p.lon) < 4) {
                 db.ref(`rooms/${state.code}/players/${id}`).update({ status: 'dead' });
-                alert("Target Neutralized!"); break;
+                alert("Target Ejected!"); break;
             }
         }
     }
@@ -301,7 +313,6 @@
         m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
     }
 
-    // --- MEETING ---
     function callMeeting() {
         if(state.status === 'dead') return;
         db.ref(`rooms/${state.code}/meeting`).set({ active: true, phase: 'setup' });
@@ -356,4 +367,28 @@
         const b = document.getElementById('task-btn'); const v = document.getElementById('v-cam');
         if(b.innerText === "TASK") {
             const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            v.srcObject = s; v.cla
+            v.srcObject = s; v.classList.remove('hidden'); b.innerText = "VERIFY";
+        } else {
+            alert("TASK DONE!"); state.cur++; updateHUD();
+            if(v.srcObject) v.srcObject.getTracks().forEach(t=>t.stop());
+            v.classList.add('hidden'); b.innerText = "TASK";
+        }
+    }
+
+    function updateHUD() {
+        const t = state.tasks[state.cur];
+        if(t) { document.getElementById('hud-task-name').innerText = t.name; document.getElementById('hud-task-img').src = t.img; }
+        else { document.getElementById('hud-task-name').innerText = "CLEARED"; }
+    }
+
+    function getDist(la1, lo1, la2, lo2) {
+        const R = 6371000;
+        const dLat = (la2-la1)*Math.PI/180; const dLon = (lo2-lo1)*Math.PI/180;
+        const a = Math.sin(dLat/2)**2 + Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLon/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function report() { if(document.getElementById('report-btn').style.opacity === "1") callMeeting(); }
+</script>
+</body>
+</html>
