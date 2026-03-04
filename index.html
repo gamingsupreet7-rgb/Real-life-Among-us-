@@ -3,115 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Among Us: Tactical Legacy</title>
+    <title>Among Us: Tactical Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Rajdhani:wght@700&display=swap');
-        body { margin: 0; background: #000; color: #fff; font-family: 'Rajdhani', sans-serif; overflow: hidden; }
-        .screen { position: absolute; inset: 0; display: none; padding: 20px; flex-direction: column; background: #000; }
+        body { margin: 0; background: #000; color: #fff; font-family: 'Rajdhani', sans-serif; overflow: hidden; touch-action: manipulation; }
+        .screen { position: absolute; inset: 0; display: none; padding: 20px; flex-direction: column; background: #000; z-index: 10; }
         .screen.active { display: flex; }
         .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; }
-        .btn-prime { background: linear-gradient(45deg, #0041ff, #00f3ff); border-radius: 10px; font-family: 'Orbitron'; font-weight: 900; color: white; }
-        #map-view { flex-grow: 1; background: radial-gradient(circle, #0a111a 0%, #000 100%); border: 2px solid #00f3ff; border-radius: 20px; position: relative; margin: 10px 0; overflow: hidden; }
-        .p-dot { width: 12px; height: 12px; border-radius: 50%; position: absolute; transform: translate(-50%, -50%); border: 2px solid #fff; }
-        #game-result { position: fixed; inset: 0; z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; background: #000; }
+        
+        /* Mega Map Overlay */
+        #map-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 5000; display: none; padding: 40px 20px; }
+        #big-map { width: 100%; height: 70vh; border: 2px solid #00f3ff; border-radius: 30px; position: relative; background: radial-gradient(circle, #0a1520 0%, #000 100%); }
+        
+        .p-dot { width: 16px; height: 16px; border-radius: 50%; position: absolute; transform: translate(-50%, -50%); border: 2px solid #fff; transition: all 0.5s linear; }
+        .body-mark { position: absolute; color: red; transform: translate(-50%, -50%); font-size: 24px; text-shadow: 0 0 10px red; }
+
+        /* Buttons */
+        .btn-kill { background: #333; color: #666; transition: 0.3s; }
+        .btn-kill.active { background: #ff003c; color: white; box-shadow: 0 0 20px #ff003c; }
+        #meeting-ui { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
-    <div id="game-result">
-        <h1 id="res-title" style="font-family: 'Orbitron';" class="text-5xl mb-4">VICTORY</h1>
-        <p id="res-sub" class="text-cyan-400 uppercase tracking-widest">Crewmates Won</p>
-        <button onclick="location.reload()" class="mt-10 px-10 py-4 bg-white text-black font-bold rounded-lg">RESTART</button>
+    <div id="scr-end" class="screen items-center justify-center z-[20000] bg-black hidden">
+        <h1 id="win-text" class="text-6xl font-['Orbitron'] mb-4">VICTORY</h1>
+        <button onclick="location.reload()" class="px-10 py-4 bg-white text-black font-bold rounded-xl">RESTART</button>
+    </div>
+
+    <div id="meeting-ui">
+        <h2 id="meet-title" class="text-4xl font-['Orbitron'] text-red-500 mb-2">DISCUSSION</h2>
+        <div id="meet-timer" class="text-7xl font-['Orbitron'] mb-8">00</div>
+        
+        <div id="meet-setup" class="w-full max-w-sm text-center">
+            <input id="set-disc-time" type="number" value="30" class="w-full bg-white/10 p-4 rounded-xl text-center mb-4 text-2xl border border-white/20" placeholder="Secs">
+            <button onclick="confirmMeet()" class="w-full py-4 bg-cyan-600 rounded-xl font-bold">START MEETING</button>
+        </div>
+
+        <div id="vote-section" class="w-full max-w-sm hidden">
+            <p class="text-cyan-400 mb-4 font-bold">VOTING TIME: <span id="v-timer">20</span>s</p>
+            <div id="vote-list" class="grid grid-cols-2 gap-3"></div>
+        </div>
+    </div>
+
+    <div id="map-overlay">
+        <h2 class="text-center font-['Orbitron'] text-cyan-400 mb-4">TACTICAL MAP</h2>
+        <div id="big-map"><div id="map-players"></div></div>
+        <button onclick="toggleMap()" class="w-full mt-6 py-4 bg-white/10 rounded-xl font-bold border border-white/20">CLOSE MAP</button>
     </div>
 
     <div id="scr-login" class="screen active justify-center">
-        <div class="text-center mb-10">
-            <h1 class="text-5xl font-black italic">TACTICAL</h1>
-            <h2 class="text-xl text-cyan-400 font-bold tracking-widest">AMONG US</h2>
-        </div>
+        <h1 class="text-5xl font-black italic text-center mb-10">TACTICAL<br><span class="text-cyan-400 font-['Orbitron'] text-2xl">AMONG US</span></h1>
         <div class="glass p-6 space-y-4">
-            <input id="inp-name" type="text" placeholder="NAME" class="w-full bg-black/50 p-4 rounded-lg border border-white/20 text-center font-bold">
-            <button onclick="goMode()" class="w-full btn-prime py-4 text-lg">INITIALIZE</button>
+            <input id="p-name" type="text" placeholder="YOUR NAME" class="w-full bg-black/50 p-4 rounded-xl border border-white/10 text-center font-bold uppercase">
+            <button onclick="initApp()" class="w-full py-5 bg-gradient-to-r from-blue-600 to-cyan-400 rounded-xl font-black">INITIALIZE</button>
         </div>
     </div>
 
     <div id="scr-mode" class="screen justify-center space-y-4">
-        <button onclick="goHost()" class="glass p-8 text-center border-cyan-500/30">
-            <i class="fas fa-satellite-dish text-3xl mb-2 text-cyan-400"></i>
-            <div class="font-bold">HOST MISSION</div>
+        <button onclick="show('scr-setup')" class="glass p-10 text-center border-cyan-500/30">
+            <i class="fas fa-satellite-dish text-4xl mb-4 text-cyan-400"></i>
+            <h3 class="font-bold">CREATE ROOM</h3>
         </button>
-        <div class="glass p-6 flex flex-col gap-3">
-            <input id="inp-code" type="text" placeholder="6-DIGIT CODE" class="bg-black/50 p-3 rounded-lg text-center border border-white/10">
-            <button onclick="joinGame()" class="w-full bg-green-600 py-3 rounded-lg font-bold">JOIN GAME</button>
+        <div class="glass p-6 flex flex-col gap-4">
+            <input id="join-code" type="text" placeholder="6-DIGIT CODE" class="bg-black/50 p-4 rounded-xl text-center border border-white/10">
+            <button onclick="joinGame()" class="w-full bg-green-600 py-4 rounded-xl font-bold">JOIN SYNC</button>
         </div>
     </div>
 
     <div id="scr-setup" class="screen">
-        <h2 class="text-xl font-bold text-cyan-400 mb-4">UPLOAD TASKS</h2>
+        <h2 class="text-2xl font-bold text-cyan-400 mb-4 font-['Orbitron']">INTEL SETUP</h2>
         <div class="glass p-4 space-y-3">
-            <input id="task-name" type="text" placeholder="LOCATION NAME" class="w-full bg-black p-3 rounded-lg border border-white/10">
-            <input type="file" id="task-file" class="hidden" accept="image/*" onchange="previewTask(this)">
-            <button onclick="document.getElementById('task-file').click()" class="w-full py-4 border-2 border-dashed border-white/20 rounded-lg text-gray-500 text-sm">
-                <span id="hint-text">TAP TO TAKE PHOTO</span>
-                <img id="prev-img" class="hidden w-full h-20 object-cover rounded mt-2">
+            <input id="t-name" type="text" placeholder="TASK NAME" class="w-full bg-black p-4 rounded-xl border border-white/10">
+            <input type="file" id="t-file" class="hidden" accept="image/*" onchange="handleFile(this)">
+            <button onclick="document.getElementById('t-file').click()" class="w-full py-10 border-2 border-dashed border-white/20 rounded-xl text-gray-500 font-bold">
+                <img id="t-prev" class="hidden w-full h-full object-cover rounded-xl">
+                <span id="t-hint">CAPTURE TARGET</span>
             </button>
-            <button onclick="saveTask()" class="w-full py-2 bg-cyan-900 border border-cyan-500 rounded font-bold">SAVE</button>
+            <button onclick="saveTask()" class="w-full py-4 bg-cyan-900 rounded-xl font-bold">SAVE TASK</button>
         </div>
-        <div id="task-preview-list" class="flex gap-2 mt-4 overflow-x-auto"></div>
-        <button onclick="setupLobby()" class="mt-auto btn-prime py-4">CREATE LOBBY</button>
+        <div id="t-list" class="flex gap-2 mt-4 overflow-x-auto pb-2"></div>
+        <button onclick="createRoom()" class="mt-auto py-5 bg-gradient-to-r from-blue-700 to-cyan-500 rounded-xl font-black">OPEN LOBBY</button>
     </div>
 
-    <div id="scr-lobby" class="screen items-center justify-center">
-        <div class="text-cyan-400 text-sm font-bold">ROOM CODE</div>
-        <h1 id="view-code" class="text-6xl font-black mb-10 font-['Orbitron']">000000</h1>
-        <div id="plist" class="w-full glass p-4 min-h-[200px] mb-6 space-y-2 text-sm"></div>
-        <button id="btn-start" onclick="launch()" class="hidden w-full bg-green-600 py-4 rounded-lg font-black">START GAME</button>
+    <div id="scr-lobby" class="screen items-center justify-center text-center">
+        <p class="text-cyan-400 font-bold tracking-[0.3em] mb-2">ROOM CODE</p>
+        <h1 id="view-code" class="text-7xl font-black mb-10 font-['Orbitron']">000000</h1>
+        <div id="p-list" class="w-full glass p-6 min-h-[200px] mb-10 space-y-2"></div>
+        <button id="start-btn" onclick="launch()" class="hidden w-full bg-green-600 py-5 rounded-xl font-black text-xl">START MISSION</button>
     </div>
 
     <div id="scr-hud" class="screen">
-        <div class="flex justify-between items-center mb-2">
+        <div class="flex justify-between items-center mb-4">
             <div>
-                <div id="tag-role" class="text-2xl font-black italic">AGENT</div>
-                <div id="tag-gps" class="text-[10px] text-cyan-500 font-mono">GPS: SYNCING...</div>
+                <h2 id="hud-role" class="text-3xl font-black italic uppercase">CREWMATE</h2>
+                <p id="hud-gps" class="text-[10px] text-cyan-500 font-mono">GPS: FIXING...</p>
             </div>
-            <button onclick="emergency()" class="bg-orange-600 px-3 py-1 rounded text-[10px] font-bold">MEETING</button>
-        </div>
-        <div id="map-view"><div id="map-layer"></div></div>
-        <div class="glass p-2 flex items-center gap-3 mb-3">
-            <img id="hud-img" class="w-12 h-12 object-cover rounded opacity-50">
-            <div>
-                <div class="text-[10px] text-cyan-400 font-bold">OBJECTIVE</div>
-                <div id="hud-task-name" class="font-bold">WAITING...</div>
+            <div class="flex gap-2">
+                <button onclick="toggleMap()" class="bg-white/10 p-3 rounded-xl border border-white/20"><i class="fas fa-map"></i></button>
+                <button onclick="callMeeting()" class="bg-orange-600 px-4 py-2 rounded-xl text-xs font-bold">EMERGENCY</button>
             </div>
         </div>
-        <video id="cam" class="hidden w-full h-32 bg-black rounded-lg border border-cyan-500 mb-2" autoplay playsinline></video>
-        <div class="grid grid-cols-2 gap-3 pb-4">
-            <button id="btn-task" onclick="doTask()" class="btn-prime py-6 font-bold" disabled>TASK</button>
-            <button id="btn-report" onclick="emergency()" class="glass py-6 text-red-500 font-bold opacity-30">REPORT</button>
+
+        <div class="glass p-4 flex items-center gap-4 mb-4">
+            <img id="hud-task-img" class="w-16 h-16 object-cover rounded-lg border border-white/20 opacity-50">
+            <div>
+                <p class="text-[10px] text-cyan-400 font-bold uppercase">Current Intel</p>
+                <h3 id="hud-task-name" class="text-xl font-bold">WAITING...</h3>
+            </div>
+        </div>
+
+        <video id="v-cam" class="hidden w-full h-40 bg-black rounded-3xl border-2 border-cyan-500/30 mb-4 object-cover" autoplay playsinline></video>
+
+        <div class="grid grid-cols-2 gap-4 mt-auto pb-4">
+            <button id="task-btn" onclick="runTask()" class="py-10 bg-gradient-to-b from-cyan-500 to-blue-700 rounded-3xl font-black text-xl">TASK</button>
+            <div class="flex flex-col gap-4">
+                <button id="kill-btn" onclick="killPlayer()" class="btn-kill flex-1 rounded-3xl font-black text-xl hidden">KILL</button>
+                <button id="report-btn" onclick="report()" class="bg-red-900/20 text-red-500 border border-red-500 rounded-3xl flex-1 font-black opacity-30">REPORT</button>
+            </div>
         </div>
     </div>
 
 <script>
-    // 1. SIMPLE NAVIGATION (Har Internet par chalega)
-    function show(id) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-    }
-
-    function goMode() {
-        let name = document.getElementById('inp-name').value;
-        if(name.length < 2) return alert("Naam toh daalo!");
-        state.name = name.toUpperCase();
-        show('scr-mode');
-    }
-
-    function goHost() { show('scr-setup'); }
-
-    // 2. FIREBASE & CORE LOGIC
+    // --- BASIC SETUP ---
     const firebaseConfig = {
         apiKey: "AIzaSyDbR67XE2iBcqQUkrDjjr7LQtLUNpyUdB8",
         databaseURL: "https://rl-amongus-real-life-amo-5542a-default-rtdb.firebaseio.com",
@@ -121,180 +139,252 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let state = { id: 'p'+Math.floor(Math.random()*999), name:'', code:'', tasks:[], cur:0, role:'Crewmate', lat:0, lon:0, origin:{la:0, lo:0} };
+    let state = { id: 'p_'+Math.random().toString(36).substr(2,4), name:'', code:'', tasks:[], cur:0, role:'Crewmate', status:'alive', lat:0, lon:0, origin:{la:0, lo:0}, players:{} };
 
-    // --- TASK SYSTEM ---
+    function show(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    function initApp() {
+        state.name = document.getElementById('p-name').value.toUpperCase();
+        if(state.name.length < 2) return;
+        show('scr-mode');
+    }
+
+    function toggleMap() {
+        const m = document.getElementById('map-overlay');
+        m.style.display = m.style.display === 'block' ? 'none' : 'block';
+    }
+
+    // --- TASK LOGIC ---
     async function getHash(src) {
         return new Promise(res => {
             const img = new Image(); img.src = src; img.onload = () => {
                 const c = document.createElement('canvas'); const ctx = c.getContext('2d');
-                c.width = 10; c.height = 10; ctx.drawImage(img,0,0,10,10);
-                const d = ctx.getImageData(0,0,10,10).data;
-                let h = ""; for(let i=0; i<d.length; i+=4) h += ((d[i]+d[i+1]+d[i+2])/3 > 120 ? "1" : "0");
+                c.width = 12; c.height = 12; ctx.drawImage(img,0,0,12,12);
+                const d = ctx.getImageData(0,0,12,12).data;
+                let h = ""; for(let i=0; i<d.length; i+=4) h += ((d[i]+d[i+1]+d[i+2])/3 > 125 ? "1" : "0");
                 res(h);
             };
         });
     }
 
-    function previewTask(input) {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            document.getElementById('prev-img').src = e.target.result;
-            document.getElementById('prev-img').classList.remove('hidden');
-            document.getElementById('hint-text').classList.add('hidden');
+    function handleFile(input) {
+        const r = new FileReader();
+        r.onload = async (e) => {
+            document.getElementById('t-prev').src = e.target.result;
+            document.getElementById('t-prev').classList.remove('hidden');
+            document.getElementById('t-hint').classList.add('hidden');
             state.tempHash = await getHash(e.target.result);
         };
-        reader.readAsDataURL(input.files[0]);
+        r.readAsDataURL(input.files[0]);
     }
 
     function saveTask() {
-        const name = document.getElementById('task-name').value;
-        const img = document.getElementById('prev-img').src;
-        if(!name || !state.tempHash) return alert("Photo aur Name dono chahiye!");
-        state.tasks.push({ name, img, hash: state.tempHash });
-        document.getElementById('task-preview-list').innerHTML += `<img src="${img}" class="w-10 h-10 rounded border border-cyan-500">`;
-        document.getElementById('task-name').value = '';
-        document.getElementById('prev-img').classList.add('hidden');
-        document.getElementById('hint-text').classList.remove('hidden');
+        const n = document.getElementById('t-name').value;
+        const i = document.getElementById('t-prev').src;
+        if(!n || !state.tempHash) return;
+        state.tasks.push({ name: n, img: i, hash: state.tempHash });
+        document.getElementById('t-list').innerHTML += `<img src="${i}" class="w-12 h-12 rounded border border-cyan-500">`;
+        document.getElementById('t-name').value = '';
+        document.getElementById('t-prev').classList.add('hidden');
+        document.getElementById('t-hint').classList.remove('hidden');
     }
 
-    // --- GAME SYNC ---
-    async function setupLobby() {
+    // --- GAME ENGINE ---
+    async function createRoom() {
         state.code = Math.floor(100000 + Math.random()*900000).toString();
         await db.ref('rooms/'+state.code).set({ status:'lobby', tasks: state.tasks });
         joinGame(state.code);
-        document.getElementById('btn-start').classList.remove('hidden');
+        document.getElementById('start-btn').classList.remove('hidden');
     }
 
-    function joinGame(overrideCode) {
-        state.code = overrideCode || document.getElementById('inp-code').value;
+    function joinGame(c) {
+        state.code = c || document.getElementById('join-code').value;
         if(!state.code) return;
-        db.ref(`rooms/${state.code}/players/${state.id}`).set({ name: state.name, role:'Crewmate', status:'alive', lat:0, lon:0 });
+        db.ref(`rooms/${state.code}/players/${state.id}`).set({ name: state.name, role:'Crewmate', status:'alive', lat:0, lon:0, id: state.id });
         document.getElementById('view-code').innerText = state.code;
         show('scr-lobby');
-        
+        sync();
+    }
+
+    function sync() {
         db.ref(`rooms/${state.code}/players`).on('value', snap => {
-            const players = snap.val() || {};
-            document.getElementById('plist').innerHTML = Object.values(players).map(p => `<div class="p-2 bg-white/5 border-l-2 border-cyan-500">${p.name}</div>`).join('');
+            state.players = snap.val() || {};
+            document.getElementById('p-list').innerHTML = Object.values(state.players).map(p => `<div class="p-3 bg-white/5 border-l-4 border-cyan-500 font-bold">${p.name}</div>`).join('');
             
-            if(players[state.id]) {
-                state.role = players[state.id].role;
-                document.getElementById('tag-role').innerText = state.role;
-                document.getElementById('tag-role').style.color = state.role === 'Impostor' ? '#ff003c' : '#00f3ff';
+            if(state.players[state.id]) {
+                state.role = state.players[state.id].role;
+                state.status = state.players[state.id].status;
+                document.getElementById('hud-role').innerText = state.role;
+                document.getElementById('hud-role').style.color = state.role === 'Impostor' ? '#ff003c' : '#00f3ff';
+                if(state.role === 'Impostor') document.getElementById('kill-btn').classList.remove('hidden');
             }
-            renderMap(players);
-            checkWin(players);
+            updateMap();
+            checkKillReport();
+            checkWin();
         });
 
-        db.ref(`rooms/${state.code}/status`).on('value', s => { 
-            if(s.val()==='playing') { 
-                show('scr-hud'); 
-                startGPS(); 
+        db.ref(`rooms/${state.code}/status`).on('value', s => {
+            if(s.val() === 'playing') {
+                show('scr-hud');
+                initGPS();
                 db.ref(`rooms/${state.code}/tasks`).once('value', t => { state.tasks = t.val(); updateHUD(); });
-            } 
+            }
+        });
+
+        db.ref(`rooms/${state.code}/meeting`).on('value', snap => {
+            const m = snap.val();
+            if(m && m.active) handleMeetingLogic(m);
+            else document.getElementById('meeting-ui').style.display = 'none';
         });
     }
 
-    function launch() { db.ref(`rooms/${state.code}`).update({ status: 'playing' }); assignRoles(); }
-
-    function assignRoles() {
-        db.ref(`rooms/${state.code}/players`).once('value', snap => {
-            const ids = Object.keys(snap.val());
-            const imp = ids[Math.floor(Math.random()*ids.length)];
-            ids.forEach(id => db.ref(`rooms/${state.code}/players/${id}`).update({ role: id===imp?'Impostor':'Crewmate' }));
-        });
+    function launch() {
+        const ids = Object.keys(state.players);
+        const imp = ids[Math.floor(Math.random()*ids.length)];
+        ids.forEach(id => db.ref(`rooms/${state.code}/players/${id}`).update({ role: id===imp?'Impostor':'Crewmate' }));
+        db.ref(`rooms/${state.code}`).update({ status: 'playing' });
     }
 
-    function startGPS() {
+    // --- GPS & MAP ---
+    function initGPS() {
         navigator.geolocation.watchPosition(p => {
             if(state.origin.la === 0) { state.origin.la = p.coords.latitude; state.origin.lo = p.coords.longitude; }
             state.lat = p.coords.latitude; state.lon = p.coords.longitude;
-            const d = getDist(state.origin.la, state.origin.lo, state.lat, state.lon);
-            document.getElementById('tag-gps').innerText = `MOVED: ${d.toFixed(1)}M`;
-            document.getElementById('btn-task').disabled = (d < 5);
+            document.getElementById('hud-gps').innerText = `LAT: ${state.lat.toFixed(5)} LON: ${state.lon.toFixed(5)}`;
             db.ref(`rooms/${state.code}/players/${state.id}`).update({ lat: state.lat, lon: state.lon });
-        }, null, {enableHighAccuracy:true});
+        }, null, { enableHighAccuracy: true, distanceFilter: 1 });
     }
 
-    function renderMap(players) {
-        const layer = document.getElementById('map-layer'); layer.innerHTML = '';
-        for(let id in players) {
-            const p = players[id];
-            if(p.status === 'dead') continue;
+    function updateMap() {
+        const map = document.getElementById('map-players'); map.innerHTML = '';
+        for(let id in state.players) {
+            const p = state.players[id];
+            if(p.status === 'dead') {
+                map.innerHTML += `<div class="body-mark" style="left:${50+(p.lon-state.origin.lo)*1000000}%; top:${50+(p.lat-state.origin.la)*1000000}%"><i class="fas fa-skull"></i></div>`;
+                continue;
+            }
             const dot = document.createElement('div');
             dot.className = 'p-dot';
             dot.style.left = 50 + (p.lon - state.origin.lo) * 1000000 + '%';
             dot.style.top = 50 + (p.lat - state.origin.la) * 1000000 + '%';
             dot.style.background = (id === state.id) ? '#00f3ff' : (state.role==='Impostor'?'#ff003c':'#fff');
-            layer.appendChild(dot);
+            map.appendChild(dot);
         }
     }
 
-    async function doTask() {
-        const b = document.getElementById('btn-task'); const v = document.getElementById('cam');
-        if(b.innerText === "TASK") {
-            const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-            v.srcObject = s; v.classList.remove('hidden'); b.innerText = "CHECK";
+    // --- KILL & REPORT LOGIC ---
+    function checkKillReport() {
+        if(state.status === 'dead') return;
+        let canKill = false;
+        let canReport = false;
+
+        for(let id in state.players) {
+            if(id === state.id) continue;
+            const p = state.players[id];
+            const dist = getDist(state.lat, state.lon, p.lat, p.lon);
+
+            if(state.role === 'Impostor' && p.role === 'Crewmate' && p.status === 'alive' && dist < 4) canKill = true;
+            if(p.status === 'dead' && dist < 5) canReport = true;
+        }
+
+        const kb = document.getElementById('kill-btn');
+        if(canKill) kb.classList.add('active'); else kb.classList.remove('active');
+
+        const rb = document.getElementById('report-btn');
+        if(canReport) rb.style.opacity = "1"; else rb.style.opacity = "0.3";
+    }
+
+    function killPlayer() {
+        if(!document.getElementById('kill-btn').classList.contains('active')) return;
+        for(let id in state.players) {
+            const p = state.players[id];
+            if(p.role === 'Crewmate' && p.status === 'alive' && getDist(state.lat, state.lon, p.lat, p.lon) < 4) {
+                db.ref(`rooms/${state.code}/players/${id}`).update({ status: 'dead' });
+                alert("Target Neutralized!");
+                break;
+            }
+        }
+    }
+
+    function report() {
+        if(document.getElementById('report-btn').style.opacity === "1") callMeeting();
+    }
+
+    // --- MEETING LOGIC ---
+    function callMeeting() {
+        if(state.status === 'dead') return;
+        document.getElementById('meeting-ui').style.display = 'flex';
+        document.getElementById('meet-setup').style.display = 'block';
+        document.getElementById('vote-section').style.display = 'none';
+    }
+
+    function confirmMeet() {
+        const dt = document.getElementById('set-disc-time').value || 30;
+        db.ref(`rooms/${state.code}/meeting`).set({ active: true, phase: 'disc', time: dt, start: Date.now(), caller: state.id });
+    }
+
+    function handleMeetingLogic(m) {
+        document.getElementById('meeting-ui').style.display = 'flex';
+        const elapsed = Math.floor((Date.now() - m.start)/1000);
+        
+        if(m.phase === 'disc') {
+            const rem = m.time - elapsed;
+            document.getElementById('meet-timer').innerText = rem > 0 ? rem : "VOTE";
+            if(rem <= 0 && state.id === m.caller) {
+                db.ref(`rooms/${state.code}/meeting`).update({ phase: 'vote', start: Date.now() });
+            }
         } else {
-            const c = document.createElement('canvas'); c.width=100; c.height=100;
-            c.getContext('2d').drawImage(v,0,0,100,100);
-            const h = await getHash(c.toDataURL());
-            let diff=0; for(let i=0; i<100; i++) if(h[i]!==state.tasks[state.cur].hash) diff++;
-            if(diff < 45) {
-                alert("TASK DONE!"); state.cur++; state.origin={la:state.lat, lo:state.lon};
-                v.srcObject.getTracks().forEach(t=>t.stop()); v.classList.add('hidden');
-                b.innerText = "TASK"; b.disabled = true; updateHUD();
-            } else { alert("AI REJECTED! Align properly."); b.innerText = "TASK"; }
+            document.getElementById('meet-setup').style.display = 'none';
+            document.getElementById('vote-section').style.display = 'block';
+            const rem = 20 - elapsed;
+            document.getElementById('v-timer').innerText = rem;
+            if(document.getElementById('vote-list').innerHTML === "") renderVoteList();
+            if(rem <= 0 && state.id === m.caller) tallyVotes();
         }
     }
 
-    function updateHUD() {
-        const t = state.tasks[state.cur];
-        if(t) { document.getElementById('hud-task-name').innerText = t.name; document.getElementById('hud-img').src = t.img; }
-        else { document.getElementById('hud-task-name').innerText = "ALL CLEAR"; }
-    }
-
-    function emergency() {
-        const target = prompt("Kisko eject karna hai? (Enter Name)");
-        if(!target) return;
-        db.ref(`rooms/${state.code}/players`).once('value', snap => {
-            const players = snap.val();
-            for(let id in players) {
-                if(players[id].name.toUpperCase() === target.toUpperCase()) {
-                    db.ref(`rooms/${state.code}/players/${id}`).update({ status: 'dead' });
-                    alert(players[id].name + " was " + players[id].role);
-                }
+    function renderVoteList() {
+        const list = document.getElementById('vote-list'); list.innerHTML = "";
+        Object.values(state.players).forEach(p => {
+            if(p.status === 'alive') {
+                const b = document.createElement('button');
+                b.className = "p-3 bg-white/10 rounded-xl font-bold text-xs";
+                b.innerText = p.name;
+                b.onclick = () => {
+                    db.ref(`rooms/${state.code}/votes/${p.id}`).transaction(c => (c||0)+1);
+                    list.innerHTML = "<p class='col-span-2 text-cyan-400'>VOTE RECORDED</p>";
+                };
+                list.appendChild(b);
             }
         });
     }
 
-    // --- NEW WIN LOGIC (Hardcore) ---
-    function checkWin(players) {
-        const pArr = Object.values(players);
-        if(pArr.length < 2) return;
-        const alive = pArr.filter(p => p.status === 'alive');
-        const imps = alive.filter(p => p.role === 'Impostor').length;
-        const crew = alive.filter(p => p.role === 'Crewmate').length;
-
-        if(imps === 0) endGame("VICTORY", "Impostor Eliminated!");
-        // Only win if EXACTLY 0 crewmates are left
-        else if(crew === 0) endGame("DEFEAT", "Impostor Wins!");
+    async function tallyVotes() {
+        const snap = await db.ref(`rooms/${state.code}/votes`).once('value');
+        const votes = snap.val() || {};
+        let max = 0, target = null;
+        for(let id in votes) { if(votes[id] > max) { max = votes[id]; target = id; } }
+        
+        if(target) {
+            db.ref(`rooms/${state.code}/players/${target}`).update({ status: 'dead' });
+            alert(state.players[target].name + " was " + state.players[target].role);
+        }
+        db.ref(`rooms/${state.code}/meeting`).remove();
+        db.ref(`rooms/${state.code}/votes`).remove();
+        document.getElementById('vote-list').innerHTML = "";
     }
 
-    function endGame(t, s) {
-        document.getElementById('game-result').style.display = 'flex';
-        document.getElementById('res-title').innerText = t;
-        document.getElementById('res-sub').innerText = s;
-    }
-
-    function getDist(la1, lo1, la2, lo2) {
-        const R = 6371000;
-        const dLat = (la2-la1)*Math.PI/180;
-        const dLon = (lo2-lo1)*Math.PI/180;
-        const a = Math.sin(dLat/2)**2 + Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLon/2)**2;
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    }
-</script>
-</body>
-                </html>
-                
+    // --- TASK EXECUTION ---
+    async function runTask() {
+        const b = document.getElementById('task-btn'); const v = document.getElementById('v-cam');
+        if(b.innerText === "TASK") {
+            const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            v.srcObject = s; v.classList.remove('hidden'); b.innerText = "VERIFY";
+        } else {
+            const c = document.createElement('canvas'); c.width=100; c.height=100;
+            c.getContext('2d').drawImage(v,0,0,100,100);
+            const h = await getHash(c.toDataURL());
+            let diff=0; for(let i=
