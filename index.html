@@ -3,193 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AI RC Monster v3</title>
+    <title>AI RC Fix v4</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        canvas { display: block; z-index: 1; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; touch-action: none; }
         #video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; }
+        canvas { display: block; }
         
-        /* AI HUD */
-        #hud { position: fixed; top: 20px; left: 20px; color: #0f0; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; border: 1px solid #0f0; z-index: 10; font-family: monospace; }
-        .alert { color: #f00; font-weight: bold; animation: blink 0.5s infinite; }
-        @keyframes blink { 50% { opacity: 0; } }
+        /* HUD & AI Stats */
+        #hud { position: fixed; top: 10px; left: 10px; color: #0f0; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 5px; z-index: 10; font-size: 12px; border: 1px solid #0f0; }
+        .danger { color: #f00; font-weight: bold; }
 
         /* Controls */
-        .controls { position: fixed; bottom: 30px; width: 100%; display: flex; justify-content: space-around; align-items: flex-end; z-index: 20; pointer-events: none; }
-        .btn-circle { width: 80px; height: 80px; background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 50%; color: #fff; display: flex; justify-content: center; align-items: center; pointer-events: auto; font-weight: bold; -webkit-user-select: none; }
-        .btn-rect { width: 100px; height: 60px; background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 10px; color: #fff; display: flex; justify-content: center; align-items: center; pointer-events: auto; font-weight: bold; }
-        .active { background: rgba(255, 255, 255, 0.5); transform: scale(0.9); }
+        .controls { position: fixed; bottom: 20px; width: 100%; display: flex; justify-content: space-around; z-index: 20; pointer-events: none; }
+        .btn { width: 70px; height: 70px; background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 50%; color: #fff; display: flex; justify-content: center; align-items: center; pointer-events: auto; font-weight: bold; }
+        .btn-action { width: 90px; height: 50px; border-radius: 10px; }
+        .active { background: rgba(255, 255, 255, 0.6); }
 
-        #size-slider { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); height: 200px; writing-mode: bt-lr; appearance: slider-vertical; z-index: 20; }
+        #reset-btn { position: fixed; top: 10px; right: 10px; padding: 10px; background: yellow; color: black; font-weight: bold; border-radius: 5px; z-index: 30; pointer-events: auto; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <video id="video" autoplay playsinline></video>
+    <div id="reset-btn" onclick="resetCar()">RESET CAR (Gadi Wapas Lao)</div>
     
     <div id="hud">
-        [ SYSTEM ONLINE ]<br>
-        AI SENSOR: <span id="ai-stat">SCANNING...</span><br>
-        OBJECT: <span id="obj-stat">NONE</span><br>
-        PHYSICS: <span id="speed-stat">0 km/h</span>
+        AI RADAR: <span id="ai-stat">LOADING...</span><br>
+        SPEED: <span id="speed-stat">0</span><br>
+        SENSORS: ONLINE
     </div>
-
-    <input type="range" id="size-slider" min="0.1" max="3" step="0.1" value="1">
 
     <div class="controls">
         <div style="display: flex; gap: 10px;">
-            <div id="left" class="btn-circle">L</div>
-            <div id="right" class="btn-circle">R</div>
+            <div id="left" class="btn">L</div>
+            <div id="right" class="btn">R</div>
         </div>
         <div style="display: flex; flex-direction: column; gap: 10px;">
-            <div id="gas" class="btn-rect" style="background: rgba(0,255,0,0.2);">GAS</div>
-            <div id="brake" class="btn-rect" style="background: rgba(255,0,0,0.2);">BRAKE</div>
-            <div id="rev" class="btn-rect" style="background: rgba(255,165,0,0.2);">REV</div>
+            <div id="gas" class="btn btn-action" style="border-color: #0f0;">GAS</div>
+            <div id="brake" class="btn btn-action" style="border-color: #f00;">BRAKE</div>
+            <div id="rev" class="btn btn-action" style="border-color: #ff0;">REV</div>
         </div>
     </div>
 
     <script>
         let scene, camera, renderer, car, objectDetector;
-        let speed = 0, angle = 0;
-        let isGas = false, isRev = false, isBrake = false, isLeft = false, isRight = false;
+        let speed = 0, angle = 0, isGas=false, isRev=false, isBrake=false, isL=false, isR=false;
         let aiBlocked = false;
 
-        // 1. Camera Setup
-        async function initCamera() {
+        async function init() {
+            // 1. Camera Setup (No Mirroring)
+            const video = document.getElementById('video');
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            document.getElementById('video').srcObject = stream;
-        }
+            video.srcObject = stream;
 
-        // 2. Custom Car Design (Bina External Link Ke)
-        function createCar() {
-            const carGroup = new THREE.Group();
-            
-            // Body
-            const body = new THREE.Mesh(
-                new THREE.BoxGeometry(2, 0.5, 4),
-                new THREE.MeshPhongMaterial({ color: 0xff0000 })
-            );
-            carGroup.add(body);
-
-            // Cockpit
-            const cabin = new THREE.Mesh(
-                new THREE.BoxGeometry(1.5, 0.6, 1.5),
-                new THREE.MeshPhongMaterial({ color: 0x333333, transparent: true, opacity: 0.8 })
-            );
-            cabin.position.y = 0.5;
-            cabin.position.z = -0.2;
-            carGroup.add(cabin);
-
-            // Wheels
-            const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
-            const wheelMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
-            
-            const positions = [[-1, -0.2, 1.2], [1, -0.2, 1.2], [-1, -0.2, -1.2], [1, -0.2, -1.2]];
-            positions.forEach(pos => {
-                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-                wheel.rotation.z = Math.PI/2;
-                wheel.position.set(...pos);
-                carGroup.add(wheel);
-            });
-
-            return carGroup;
-        }
-
-        // 3. Scene Init
-        function initScene() {
+            // 2. Scene Setup
             scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            const light = new THREE.DirectionalLight(0xffffff, 1);
-            light.position.set(5, 10, 5);
-            scene.add(light);
-            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            // Lights
+            scene.add(new THREE.AmbientLight(0xffffff, 1));
+            const sun = new THREE.DirectionalLight(0xffffff, 1);
+            sun.position.set(5, 10, 5);
+            scene.add(sun);
 
-            car = createCar();
-            car.position.set(0, -3, -10);
-            scene.add(car);
+            // 3. Simple Sports Car Model
+            createCar();
+            resetCar(); // Position the car
 
-            camera.position.z = 5;
-            animate();
-        }
-
-        // 4. AI Logic (The Core)
-        function initAI() {
+            // 4. AI Setup
             objectDetector = ml5.objectDetector('cocossd', {}, () => {
                 document.getElementById('ai-stat').innerText = "AI ACTIVE";
                 detect();
             });
+
+            animate();
+        }
+
+        function createCar() {
+            car = new THREE.Group();
+            // Body
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 2.5), new THREE.MeshPhongMaterial({color: 0xff0000}));
+            car.add(body);
+            // Roof
+            const roof = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.4, 1), new THREE.MeshPhongMaterial({color: 0x222222}));
+            roof.position.y = 0.4;
+            car.add(roof);
+            // Wheels
+            const wGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 12);
+            const wMat = new THREE.MeshPhongMaterial({color: 0x111111});
+            const wPos = [[-0.7, -0.2, 0.8], [0.7, -0.2, 0.8], [-0.7, -0.2, -0.8], [0.7, -0.2, -0.8]];
+            wPos.forEach(p => {
+                const w = new THREE.Mesh(wGeo, wMat);
+                w.rotation.z = Math.PI/2;
+                w.position.set(...p);
+                car.add(w);
+            });
+            scene.add(car);
+        }
+
+        function resetCar() {
+            if(!car) return;
+            // Car ko camera ke bilkul samne aur thoda neeche set karo
+            car.position.set(0, -2, -6);
+            car.rotation.set(0, 0, 0);
+            speed = 0;
         }
 
         function detect() {
             objectDetector.detect(document.getElementById('video'), (err, results) => {
                 if (results && results.length > 0) {
-                    // AI Check: Agar samne koi cheez 40% se zyada screen cover kare ya koi 'person' ho
-                    let danger = results.some(r => r.confidence > 0.5 && (r.label === 'person' || r.label === 'chair' || r.label === 'bottle' || r.label === 'cell phone'));
-                    
-                    if (danger) {
+                    // Check if object is close (width of box > 30% of screen)
+                    let found = results.some(r => r.confidence > 0.4 && (r.label !== 'floor'));
+                    if (found) {
                         aiBlocked = true;
-                        document.getElementById('ai-stat').innerHTML = "<span class='alert'>STOP! OBSTACLE</span>";
-                        document.getElementById('obj-stat').innerText = results[0].label.toUpperCase();
+                        document.getElementById('ai-stat').innerHTML = "<span class='danger'>OBSTACLE!</span>";
                     } else {
                         aiBlocked = false;
                         document.getElementById('ai-stat').innerText = "PATH CLEAR";
-                        document.getElementById('obj-stat').innerText = "NONE";
                     }
                 }
                 detect();
             });
         }
 
-        // 5. Physics & Animation
         function animate() {
             requestAnimationFrame(animate);
 
-            // Scale Control
-            let s = document.getElementById('size-slider').value;
-            car.scale.set(s, s, s);
-
-            // Driving Logic
-            if (isGas && !aiBlocked) speed = Math.min(speed + 0.005, 0.2);
-            else if (isRev) speed = Math.max(speed - 0.005, -0.1);
-            else if (isBrake) speed *= 0.8;
-            else speed *= 0.95; // Friction
+            // Driving Physics
+            if (isGas && !aiBlocked) speed = Math.min(speed + 0.005, 0.15);
+            else if (isRev) speed = Math.max(speed - 0.005, -0.08);
+            else if (isBrake) speed *= 0.7;
+            else speed *= 0.96; // Drift stop
 
             if (Math.abs(speed) > 0.01) {
-                if (isLeft) car.rotation.y += 0.04;
-                if (isRight) car.rotation.y -= 0.04;
+                if (isL) car.rotation.y += 0.05;
+                if (isR) car.rotation.y -= 0.05;
             }
 
             car.translateZ(-speed);
-            document.getElementById('speed-stat').innerText = Math.round(Math.abs(speed)*500) + " km/h";
+            document.getElementById('speed-stat').innerText = Math.round(Math.abs(speed)*100);
 
             renderer.render(scene, camera);
         }
 
-        // 6. Touch Inputs
-        const bind = (id, action) => {
+        // Input Setup
+        const setBtn = (id, v) => {
             const el = document.getElementById(id);
-            el.ontouchstart = (e) => { e.preventDefault(); window[action] = true; el.classList.add('active'); };
-            el.ontouchend = (e) => { e.preventDefault(); window[action] = false; el.classList.remove('active'); };
+            el.ontouchstart = (e) => { e.preventDefault(); window[v] = true; el.classList.add('active'); };
+            el.ontouchend = (e) => { e.preventDefault(); window[v] = false; el.classList.remove('active'); };
         };
 
-        bind('gas', 'isGas'); bind('rev', 'isRev'); bind('brake', 'isBrake');
-        bind('left', 'isLeft'); bind('right', 'isRight');
-
-        initCamera();
-        initScene();
-        initAI();
+        setBtn('gas', 'isGas'); setBtn('rev', 'isRev'); setBtn('brake', 'isBrake');
+        setBtn('left', 'isL'); setBtn('right', 'isR');
 
         window.onresize = () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         };
+
+        init();
     </script>
 </body>
 </html>
