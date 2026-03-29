@@ -3,124 +3,263 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AI RC AR Car (No ARCore)</title>
+    <title>AI Porsche RC Pro (No ARCore)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
+    
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', Courier, monospace; touch-action: none; }
         canvas { display: block; }
-        #video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; }
-        .controls { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 10; }
-        button { width: 60px; height: 60px; border-radius: 50%; border: none; background: rgba(255,255,255,0.3); color: white; font-weight: bold; }
-        #ui { position: fixed; top: 10px; left: 10px; color: cyan; z-index: 10; font-size: 12px; }
-        #slider-cont { position: fixed; right: 10px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; color: white; }
-        input[type=range] { writing-mode: bt-lr; appearance: slider-vertical; width: 8px; height: 200px; }
+        #video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; transform: scaleX(-1); /* Mirror for natural feel */ }
+        
+        /* UI Overlay */
+        #ui-trace { position: fixed; top: 10px; left: 10px; color: #0f0; z-index: 10; font-size: 12px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 4px; pointer-events: none;}
+        .danger { color: #f00 !important; font-weight: bold; animation: blink 0.5s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* Full Controller Layout */
+        .controller-container { position: fixed; bottom: 0; left: 0; width: 100%; height: 220px; z-index: 20; pointer-events: none; }
+        .controller-container * { pointer-events: auto; }
+
+        /* Steering Wheel (Left Side) */
+        #steering-hud { position: absolute; bottom: 40px; left: 40px; width: 140px; height: 140px; background: url('https://cdn-icons-png.flaticon.com/512/1049/1049911.png') no-repeat center; background-size: contain; transform-origin: center; transition: transform 0.1s linear; border-radius: 50%; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+
+        /* Pedals (Right Side) */
+        .pedal-group { position: absolute; bottom: 30px; right: 40px; display: flex; gap: 15px; align-items: flex-end; }
+        .pedal { width: 70px; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.4); border-radius: 10px; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.5); -webkit-user-select: none; user-select: none; }
+        .pedal:active { background: rgba(255,255,255,0.4); transform: translateY(2px); }
+        
+        #btn-gas { height: 120px; font-size: 20px; background: rgba(0, 255, 0, 0.1); border-color: rgba(0,255,0,0.5); }
+        #btn-brake { height: 90px; font-size: 18px; background: rgba(255, 0, 0, 0.1); border-color: rgba(255,0,0,0.5); }
+        #btn-rev { height: 70px; font-size: 16px; background: rgba(255, 165, 0, 0.1); border-color: rgba(255,165,0,0.5); }
+
+        /* Size Slider */
+        #size-container { position: fixed; right: 20px; top: 100px; display: flex; flex-direction: column; align-items: center; color: white; z-index: 10; font-size: 10px;}
+        input[type=range] { writing-mode: bt-lr; appearance: slider-vertical; width: 8px; height: 150px; background: rgba(255,255,255,0.2); }
+
     </style>
 </head>
 <body>
 
     <video id="video" autoplay playsinline></video>
     
-    <div id="ui">AI Status: <span id="status">Loading AI...</span></div>
-
-    <div id="slider-cont">
-        <span>SIZE</span>
-        <input type="range" id="sizeSlider" min="0.1" max="2" step="0.1" value="0.5">
+    <div id="ui-trace">
+        System: <span id="sys-status">Initializing...</span><br>
+        AI: <span id="ai-status">Loading Model...</span><br>
+        Physics: <span id="phys-status">Idle</span>
     </div>
 
-    <div class="controls">
-        <button id="btn-left">L</button>
-        <button id="btn-up">UP</button>
-        <button id="btn-down">DN</button>
-        <button id="btn-right">R</button>
+    <div id="size-container">
+        <span>SIZE</span>
+        <input type="range" id="sizeSlider" min="0.01" max="0.5" step="0.01" value="0.1">
+    </div>
+
+    <div class="controller-container">
+        <div id="steering-hud"></div>
+
+        <div class="pedal-group">
+            <div id="btn-rev" class="pedal">REV</div>
+            <div id="btn-brake" class="pedal">BRAKE</div>
+            <div id="btn-gas" class="pedal">GAS</div>
+        </div>
     </div>
 
     <script>
-        let scene, camera, renderer, car, objectDetector;
-        let moveForward = false, moveBackward = false, turnLeft = false, turnRight = false;
-        let isObstacle = false;
+        let scene, camera, renderer, carModel, objectDetector;
+        let isMoving = false, isBraking = false, isReversing = false;
+        let currentSpeed = 0;
+        let maxSpeed = 0.3; 
+        let friction = 0.97; // Slow down when gas released
+        let steeringAngle = 0; // -1 to 1
 
-        // 1. Setup Camera Background
+        const sysStatus = document.getElementById('sys-status');
+        const aiStatus = document.getElementById('ai-status');
+        const physStatus = document.getElementById('phys-status');
+        const steeringHud = document.getElementById('steering-hud');
+
+        let aiObstacleDetected = false;
+
+        // --- 1. SETUP VIDEO BACKGROUND ---
         async function setupCamera() {
             const video = document.getElementById('video');
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-            video.srcObject = stream;
-            return new Promise((resolve) => video.onloadedmetadata = () => resolve(video));
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+                video.srcObject = stream;
+                sysStatus.innerText = "Camera OK";
+                return new Promise((resolve) => video.onloadedmetadata = () => resolve(video));
+            } catch (e) {
+                sysStatus.innerText = "Camera Error";
+                console.error(e);
+            }
         }
 
-        // 2. Setup 3D Scene
+        // --- 2. SETUP 3D SCENE & LOAD PORSCHE MODEL ---
         function init3D() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ alpha: true });
+            
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
-            // Lighting
-            const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
-            scene.add(light);
+            // Realistic Lighting
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
+            scene.add(hemiLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+            dirLight.position.set(5, 10, 7);
+            scene.add(dirLight);
 
-            // Simple Car Box (Jab tak aap model load na karein)
-            const geometry = new THREE.BoxGeometry(1, 0.5, 2);
-            const material = new THREE.MeshPhongMaterial({ color: 0xff0000 });
-            car = new THREE.Mesh(geometry, material);
-            car.position.set(0, -2, -10); // Screen ke thoda door
-            scene.add(car);
+            // Load realistic Porsche 911 GT3 Model (.glb)
+            const loader = new THREE.GLTFLoader();
+            sysStatus.innerText = "Loading Vehicle...";
+            
+            // Using a reliable public domain model URL
+            const modelUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/Ferrari.glb'; // Standard reliable sports car
+            // If you have a specific Porsche GLB, replace this URL.
+
+            loader.load(modelUrl, (gltf) => {
+                carModel = gltf.scene;
+                
+                // Initial placement in front of camera
+                carModel.position.set(0, -3.5, -12); // Positioned slightly down and away
+                carModel.rotation.y = Math.PI; // Face away from camera initially
+                
+                scene.add(carModel);
+                sysStatus.innerText = "Vehicle Loaded";
+                animate(); // Start rendering after model load
+            }, 
+            (xhr) => { sysStatus.innerText = `Loading: ${Math.round((xhr.loaded / xhr.total * 100))}%`; },
+            (error) => { sysStatus.innerText = "Model Load Failed"; console.error(error); });
 
             camera.position.z = 5;
-            animate();
         }
 
-        // 3. AI Sensing (Object Detection)
+        // --- 3. AI SENSING (ANTI-COLLISION) ---
         function startAI() {
-            objectDetector = ml5.objectDetector('cocossd', {}, modelLoaded);
-        }
-
-        function modelLoaded() {
-            document.getElementById('status').innerText = "AI Active";
-            detect();
-        }
-
-        function detect() {
-            objectDetector.detect(document.getElementById('video'), (err, results) => {
-                if (results && results.length > 0) {
-                    // Agar samne koi "person" ya "chair" dikhe toh obstacle true
-                    let found = results.some(r => r.label === 'person' || r.label === 'chair' || r.label === 'bottle');
-                    isObstacle = found;
-                    document.getElementById('status').innerText = found ? "Obstacle Detected! Stopping." : "Path Clear";
-                } else {
-                    isObstacle = false;
-                }
-                detect(); 
+            aiStatus.innerText = "Initializing AI...";
+            objectDetector = ml5.objectDetector('cocossd', {}, () => {
+                aiStatus.innerText = "AI Active";
+                detectFrame();
             });
         }
 
-        // 4. Movement Logic
+        function detectFrame() {
+            objectDetector.detect(document.getElementById('video'), (err, results) => {
+                if (results && results.length > 0) {
+                    // Critical Obstacles to detect: persons, chairs, tables, bottles, computers, cars (real ones)
+                    const dangerousObjects = ['person', 'chair', 'table', 'bottle', 'tv', 'laptop', 'couch'];
+                    let foundObstacle = results.some(r => dangerousObjects.includes(r.label) && r.confidence > 0.6);
+
+                    if (foundObstacle) {
+                        aiObstacleDetected = true;
+                        aiStatus.innerText = "CRASH IMMINENT - FREEZING";
+                        aiStatus.classList.add('danger');
+                    } else {
+                        aiObstacleDetected = false;
+                        aiStatus.innerText = "Path Clear";
+                        aiStatus.classList.remove('danger');
+                    }
+                } else {
+                    aiObstacleDetected = false;
+                    aiStatus.classList.remove('danger');
+                    aiStatus.innerText = "Path Clear";
+                }
+                detectFrame(); // Continuous loop
+            });
+        }
+
+        // --- 4. ADVANCED MOVEMENT & PHYSICS LOOP ---
         function animate() {
             requestAnimationFrame(animate);
 
-            if (moveForward && !isObstacle) car.translateZ(-0.1);
-            if (moveBackward) car.translateZ(0.1);
-            if (turnLeft) car.rotation.y += 0.05;
-            if (turnRight) car.rotation.y -= 0.05;
+            if (!carModel) return; // Wait for load
 
-            // Size Control from Slider
-            let s = document.getElementById('sizeSlider').value;
-            car.scale.set(s, s, s);
+            // Apply Size Slider
+            let scaleVal = document.getElementById('sizeSlider').value;
+            carModel.scale.set(scaleVal, scaleVal, scaleVal);
+
+            // AI Physics: CRASH PREVENTION
+            if (aiObstacleDetected && currentSpeed > 0) {
+                currentSpeed = 0; // Instant freeze if moving forward towards obstacle
+                physStatus.innerText = "AI EMERGENCY STOP";
+            } else {
+                // Normal Physics
+                if (isMoving) currentSpeed = Math.min(maxSpeed, currentSpeed + 0.02); // Accelerate
+                if (isReversing) currentSpeed = Math.max(-maxSpeed/2, currentSpeed - 0.01); // Slow Reverse
+
+                // Apply Friction/Deceleration
+                if (!isMoving && !isReversing) currentSpeed *= friction;
+                if (Math.abs(currentSpeed) < 0.001) currentSpeed = 0; // Full stop damping
+
+                // Brake Application
+                if (isBraking) {
+                    if (currentSpeed > 0) currentSpeed = Math.max(0, currentSpeed - 0.05);
+                    else if (currentSpeed < 0) currentSpeed = Math.min(0, currentSpeed + 0.05);
+                }
+
+                physStatus.innerText = `Speed: ${(currentSpeed*100).toFixed(1)} km/h`;
+            }
+
+            // Apply Movement based on current speed and steering
+            // translateZ moves along the local 'forward' axis of the car
+            carModel.translateZ(currentSpeed);
+            
+            // Turning logic (only when moving)
+            if (Math.abs(currentSpeed) > 0.01) {
+                // Map steering -1 to 1 to car rotation
+                let turnFactor = currentSpeed > 0 ? 1 : -1; // Reverse steering in reverse
+                carModel.rotation.y -= (steeringAngle * 0.04 * turnFactor);
+            }
 
             renderer.render(scene, camera);
         }
 
-        // 5. Input Listeners
-        const setBtn = (id, action, val) => {
-            document.getElementById(id).addEventListener('touchstart', () => window[action] = val);
-            document.getElementById(id).addEventListener('touchend', () => window[action] = !val);
+        // --- 5. CONTROLLER INPUT HANDLING ---
+        
+        // Pedals
+        const setupPedal = (id, variable, value) => {
+            const el = document.getElementById(id);
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); window[variable] = value; });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); window[variable] = !value; });
         };
 
-        setBtn('btn-up', 'moveForward', true);
-        setBtn('btn-down', 'moveBackward', true);
-        setBtn('btn-left', 'turnLeft', true);
-        setBtn('btn-right', 'turnRight', true);
+        setupPedal('btn-gas', 'isMoving', true);
+        setupPedal('btn-brake', 'isBraking', true);
+        setupPedal('btn-rev', 'isReversing', true);
+
+        // Steering Wheel (Touch rotation logic)
+        let isSteering = false;
+        let startX = 0;
+
+        steeringHud.addEventListener('touchstart', (e) => {
+            isSteering = true;
+            startX = e.touches[0].clientX;
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!isSteering) return;
+            let currentX = e.touches[0].clientX;
+            let diffX = currentX - startX;
+            
+            // Limit steering angle visually and logically (-90 to 90 degrees)
+            let rawAngle = diffX; // Simple mapping
+            let cappedAngle = Math.max(-90, Math.min(90, rawAngle));
+            
+            steeringHud.style.transform = `rotate(${cappedAngle}deg)`;
+            steeringAngle = cappedAngle / 90; // Normalize to -1 to 1
+        });
+
+        window.addEventListener('touchend', () => {
+            if (isSteering) {
+                isSteering = false;
+                // Auto-center steering wheel
+                steeringHud.style.transform = `rotate(0deg)`;
+                steeringAngle = 0;
+            }
+        });
 
         // Start Everything
         setupCamera().then(() => {
@@ -128,11 +267,15 @@
             startAI();
         });
 
+        // Handle Resize
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            if(camera) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+            }
+            if(renderer) renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
     </script>
 </body>
 </html>
