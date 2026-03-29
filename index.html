@@ -3,185 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ULTRA AI RC - PRO VERSION</title>
+    <title>ULTRA AI RC - TURBO LITE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Orbitron', sans-serif; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; touch-action: none; }
         #video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; }
-        canvas { display: block; }
+        #hud { position: fixed; top: 10px; left: 10px; color: #0f0; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px; z-index: 10; font-size: 11px; border: 1px solid #0f0; max-width: 200px; }
+        #error-log { position: fixed; top: 50%; width: 100%; text-align: center; color: red; background: rgba(0,0,0,0.8); z-index: 100; font-weight: bold; padding: 10px; display: none; }
         
-        /* High-Tech HUD */
-        #hud { position: fixed; top: 20px; left: 20px; color: #00ffff; background: rgba(0,20,40,0.8); padding: 15px; border-radius: 10px; border: 2px solid #00ffff; z-index: 10; font-family: monospace; box-shadow: 0 0 15px #00ffff; }
-        .danger { color: #ff0000; text-shadow: 0 0 10px #ff0000; font-weight: bold; }
-
-        /* Pro Controller */
-        .controls { position: fixed; bottom: 40px; width: 100%; display: flex; justify-content: space-between; padding: 0 30px; box-sizing: border-box; z-index: 20; pointer-events: none; }
-        .steering-box { display: flex; gap: 20px; pointer-events: auto; }
-        .pedal-box { display: flex; flex-direction: column; gap: 15px; pointer-events: auto; }
-        
-        .btn { width: 85px; height: 85px; background: rgba(0, 255, 255, 0.1); border: 3px solid #00ffff; border-radius: 50%; color: #00ffff; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 18px; transition: 0.1s; -webkit-user-select: none; }
-        .btn:active { background: #00ffff; color: #000; transform: scale(0.9); box-shadow: 0 0 30px #00ffff; }
-        .btn-rect { width: 120px; height: 70px; border-radius: 15px; }
-
-        #msg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; background: rgba(0,0,0,0.8); padding: 20px; display: none; z-index: 100; text-align: center; }
+        /* Realistic Controls */
+        .controls { position: fixed; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 20; pointer-events: none; }
+        .btn { width: 80px; height: 80px; background: rgba(255, 255, 255, 0.2); border: 3px solid #fff; border-radius: 50%; color: #fff; display: flex; justify-content: center; align-items: center; font-weight: bold; pointer-events: auto; }
+        .btn-rect { width: 110px; height: 60px; border-radius: 10px; margin-bottom: 10px; }
+        .active { background: rgba(0, 255, 255, 0.5); transform: scale(0.9); }
     </style>
 </head>
 <body>
 
     <video id="video" autoplay playsinline></video>
-    <div id="msg">Sensing World... Please Wait</div>
+    <div id="error-log"></div>
     
     <div id="hud">
-        CORE AI: <span id="ai-stat">BOOTING...</span><br>
-        FLOOR SENSE: <span id="floor-stat">SCANNING</span><br>
-        GYRO: <span id="gyro-stat">OFF</span><br>
-        GEAR: <span id="gear-stat">N</span>
+        AI STATUS: <span id="ai-stat">CONNECTING...</span><br>
+        GYRO/AR: <span id="gyro-stat">WAITING</span><br>
+        OBJECT: <span id="obj-stat">NONE</span>
     </div>
 
     <div class="controls">
-        <div class="steering-box">
-            <div id="left" class="btn">◀</div>
-            <div id="right" class="btn">▶</div>
+        <div style="display:flex; gap:10px;">
+            <div id="left" class="btn">LEFT</div>
+            <div id="right" class="btn">RIGHT</div>
         </div>
-        <div class="pedal-box">
-            <div id="gas" class="btn btn-rect" style="border-color: #00ff00; color: #00ff00;">ACCEL</div>
-            <div id="brake" class="btn btn-rect" style="border-color: #ff0000; color: #ff0000;">BRAKE</div>
-            <div id="rev" class="btn btn-rect" style="border-color: #ffff00; color: #ffff00;">REV</div>
+        <div style="display:flex; flex-direction:column;">
+            <div id="gas" class="btn btn-rect" style="border-color:#0f0">GAS</div>
+            <div id="rev" class="btn btn-rect" style="border-color:#ff0">REV</div>
+            <div id="brake" class="btn btn-rect" style="border-color:#f00">BRAKE</div>
         </div>
     </div>
 
     <script>
         let scene, camera, renderer, car, detector;
-        let speed = 0, angle = 0, isGas=false, isRev=false, isBrake=false, isL=false, isR=false;
-        let aiBlocked = false, gyroY = 0, gyroX = 0;
+        let speed = 0, isGas=false, isRev=false, isBrake=false, isL=false, isR=false;
+        let aiBlocked = false, gyroY = 0;
 
-        async function init() {
-            document.getElementById('msg').style.display = 'block';
-            
-            // 1. Camera & Gyro Permission
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            document.getElementById('video').srcObject = stream;
-
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission();
-            }
-            window.addEventListener('deviceorientation', (e) => {
-                gyroY = e.gamma; // Phone Tilt
-                gyroX = e.beta;
-                document.getElementById('gyro-stat').innerText = "TRACKING";
-            });
-
-            // 2. Three.js Scene
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-
-            scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-            const light = new THREE.PointLight(0x00ffff, 1, 100);
-            light.position.set(0, 5, 5);
-            scene.add(light);
-
-            // 3. Car Design (Heavy Mesh)
-            const carBody = new THREE.Group();
-            const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 3), new THREE.MeshPhongMaterial({color: 0xff0000, shininess: 100}));
-            carBody.add(mainBody);
-            const spoiler = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 0.5), new THREE.MeshPhongMaterial({color: 0x111111}));
-            spoiler.position.set(0, 0.5, 1.3);
-            carBody.add(spoiler);
-            
-            // Wheels
-            const wGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 32);
-            const wMat = new THREE.MeshPhongMaterial({color: 0x111111});
-            const wPos = [[-0.9, -0.2, 1], [0.9, -0.2, 1], [-0.9, -0.2, -1], [0.9, -0.2, -1]];
-            wPos.forEach(p => {
-                const w = new THREE.Mesh(wGeo, wMat);
-                w.rotation.z = Math.PI/2;
-                w.position.set(...p);
-                carBody.add(w);
-            });
-            car = carBody;
-            car.position.set(0, -4, -10); // Zameen ki position
-            scene.add(car);
-
-            // 4. Heavy AI Loading
-            detector = await cocoSsd.load();
-            document.getElementById('ai-stat').innerText = "AI ONLINE (ULTRA)";
-            document.getElementById('msg').style.display = 'none';
-            
-            detectObjects();
-            animate();
+        function logError(msg) {
+            const err = document.getElementById('error-log');
+            err.style.display = 'block';
+            err.innerText = "ERROR: " + msg;
         }
 
-        function detectObjects() {
-            detector.detect(document.getElementById('video')).then(results => {
-                let obstacle = results.some(r => r.score > 0.6 && (r.label === 'person' || r.label === 'hand' || r.label === 'chair' || r.label === 'tv' || r.label === 'bottle'));
+        async function init() {
+            try {
+                // 1. Camera Access
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                document.getElementById('video').srcObject = stream;
+
+                // 2. Gyroscope for World Stability
+                if (window.DeviceOrientationEvent) {
+                    window.addEventListener('deviceorientation', (e) => {
+                        gyroY = e.gamma; 
+                        document.getElementById('gyro-stat').innerText = "STABLE";
+                    });
+                }
+
+                // 3. Three.js Scene Setup
+                scene = new THREE.Scene();
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+                renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                document.body.appendChild(renderer.domElement);
+
+                scene.add(new THREE.AmbientLight(0xffffff, 1));
                 
-                if (obstacle) {
+                // Create Sports Car
+                const carGroup = new THREE.Group();
+                const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 2.5), new THREE.MeshPhongMaterial({color: 0xff0000}));
+                carGroup.add(body);
+                const wheels = [[-0.7,-0.2,0.8], [0.7,-0.2,0.8], [-0.7,-0.2,-0.8], [0.7,-0.2,-0.8]];
+                wheels.forEach(p => {
+                    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.2,16), new THREE.MeshPhongMaterial({color:0x111111}));
+                    w.rotation.z = Math.PI/2; w.position.set(...p);
+                    carGroup.add(w);
+                });
+                car = carGroup;
+                car.position.set(0, -3, -8);
+                scene.add(car);
+
+                // 4. Load AI (Fast Loading Mode)
+                document.getElementById('ai-stat').innerText = "LOADING AI...";
+                detector = await cocoSsd.load({ base: 'lite_mobilenet_v2' }); 
+                document.getElementById('ai-stat').innerText = "AI ONLINE";
+                
+                detectFrame();
+                animate();
+            } catch (e) {
+                logError(e.message);
+            }
+        }
+
+        function detectFrame() {
+            detector.detect(document.getElementById('video')).then(results => {
+                // AI Sense: Stop if person, furniture, or wall detected in front
+                let found = results.some(r => r.score > 0.5 && r.label !== 'floor');
+                if (found) {
                     aiBlocked = true;
-                    document.getElementById('floor-stat').innerHTML = "<span class='danger'>COLLISION DETECTED</span>";
+                    document.getElementById('obj-stat').innerText = results[0].label.toUpperCase() + " (STOP)";
+                    document.getElementById('obj-stat').style.color = "red";
                 } else {
                     aiBlocked = false;
-                    document.getElementById('floor-stat').innerText = "CLEAR PATH";
+                    document.getElementById('obj-stat').innerText = "PATH CLEAR";
+                    document.getElementById('obj-stat').style.color = "#0f0";
                 }
-                setTimeout(detectObjects, 100); // Heavy AI loop
+                setTimeout(detectFrame, 150);
             });
         }
 
         function animate() {
             requestAnimationFrame(animate);
 
-            // Gyroscope Counter-Movement (Isse gadi screen ke saath nahi hilegi)
-            car.rotation.x = THREE.MathUtils.lerp(car.rotation.x, (gyroX - 70) * 0.01, 0.1);
-            
-            // Physics
-            if (isGas && !aiBlocked) {
-                speed = Math.min(speed + 0.008, 0.25);
-                document.getElementById('gear-stat').innerText = "D";
-            } else if (isRev) {
-                speed = Math.max(speed - 0.006, -0.12);
-                document.getElementById('gear-stat').innerText = "R";
-            } else if (isBrake) {
-                speed *= 0.6;
-                document.getElementById('gear-stat').innerText = "B";
-            } else {
-                speed *= 0.94;
-                document.getElementById('gear-stat').innerText = "N";
-            }
+            // Gyroscope Counter (Makes car stay on floor)
+            if(Math.abs(gyroY) < 45) car.rotation.x = THREE.MathUtils.lerp(car.rotation.x, gyroY * 0.01, 0.1);
+
+            // Physics Logic
+            if (isGas && !aiBlocked) speed = Math.min(speed + 0.006, 0.2);
+            else if (isRev) speed = Math.max(speed - 0.006, -0.1);
+            else if (isBrake) speed *= 0.6;
+            else speed *= 0.95;
 
             if (Math.abs(speed) > 0.01) {
-                if (isL) car.rotation.y += 0.06;
-                if (isR) car.rotation.y -= 0.06;
+                if (isL) car.rotation.y += 0.05;
+                if (isR) car.rotation.y -= 0.05;
             }
 
             car.translateZ(-speed);
             renderer.render(scene, camera);
         }
 
-        // Control Binding
         const bind = (id, v) => {
             const el = document.getElementById(id);
-            const start = (e) => { e.preventDefault(); window[v] = true; };
-            const end = (e) => { e.preventDefault(); window[v] = false; };
-            el.addEventListener('touchstart', start); el.addEventListener('touchend', end);
-            el.addEventListener('mousedown', start); el.addEventListener('mouseup', end);
+            el.ontouchstart = (e) => { e.preventDefault(); window[v] = true; el.classList.add('active'); };
+            el.ontouchend = (e) => { e.preventDefault(); window[v] = false; el.classList.remove('active'); };
         };
 
         bind('gas', 'isGas'); bind('rev', 'isRev'); bind('brake', 'isBrake');
         bind('left', 'isL'); bind('right', 'isR');
 
-        init().catch(err => {
-            alert("Camera/Sensor Access Chahiye! " + err);
-        });
-
-        window.onresize = () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        };
+        init();
     </script>
 </body>
 </html>
